@@ -1,0 +1,8 @@
+{
+  "name": "faceless-shorts-queue-form",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  }
+}

@@ -1,14 +1,20 @@
 # Faceless Shorts Pipeline
 
-Generates one fictional crime/love/fun story a day, narrates it, lays it over
-stock b-roll with burned-in captions, and publishes it to YouTube Shorts and
-Instagram Reels.
+You submit a one-line storyline through a private web form. The pipeline
+expands it into a full narration script, voices it, lays it over stock b-roll
+with burned-in captions, and publishes it to YouTube Shorts and Instagram
+Reels — once a day, only on days you've actually submitted a storyline.
 
 ## What it does
 
-1. `generateScript.ts` — asks OpenAI for a ~45-60s fictional story (category
-   rotates crime → love → fun → repeat), avoiding premises already used
-   (tracked in `state/used-stories.json`).
+0. `web/` — a small hosted form (deployed on Vercel) where you paste a
+   storyline idea + a passphrase. It queues the idea in a Supabase table
+   (`storyline_queue`).
+1. `generateScript.ts` — pulls the oldest pending storyline from the queue
+   and asks OpenAI to expand it into a full ~45-60s fictional script,
+   classifying it into crime/love/fun and fictionalizing any real
+   names/events. If the queue is empty, the run exits cleanly and **posts
+   nothing that day**.
 2. `tts.ts` — narrates it with OpenAI TTS, then re-transcribes the audio with
    Whisper to get word-level timestamps for caption sync.
 3. `pickBroll.ts` — searches Pexels for portrait stock video matching the
@@ -17,8 +23,9 @@ Instagram Reels.
    into a 1080x1920 mp4.
 5. `uploadYoutube.ts` / `uploadInstagram.ts` — publish the result.
 
-Run the whole thing with `npm run run:daily`, or let the included GitHub
-Actions workflow (`.github/workflows/daily.yml`) do it once a day.
+Run the pipeline with `npm run run:daily`, or let the included GitHub Actions
+workflow (`.github/workflows/daily.yml`) check the queue once a day and
+publish automatically when there's something in it.
 
 ## Prerequisites
 
@@ -54,11 +61,14 @@ generous (200 req/hour) — plenty for 1 video/day.
    you're confident in the pipeline — that removes the 7-day limit.
 
 ### 4. Supabase
-Used only as temporary public hosting so Instagram's API can fetch the
-rendered video by URL (it requires a `video_url`, not a file upload).
+Used for two things: (a) temporary public hosting so Instagram's API can
+fetch the rendered video by URL, and (b) the storyline queue the web form
+writes to.
 1. Create a project at https://supabase.com if you don't have one.
 2. Storage → create a public bucket, e.g. `faceless-shorts-renders`.
-3. Project Settings → API → copy the URL and the **service_role** key (not
+3. SQL Editor → paste and run `supabase/queue.sql` to create the
+   `storyline_queue` table.
+4. Project Settings → API → copy the URL and the **service_role** key (not
    the anon key) → `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### 5. Instagram Reels
@@ -74,22 +84,42 @@ rendered video by URL (it requires a `video_url`, not a file upload).
    admins/testers requires Meta App Review for `instagram_content_publish`.
    For your own account in development mode it works without review.
 
+### 6. The storyline submission form (Vercel)
+This is how you actually feed it a storyline each day.
+1. Create a free account at https://vercel.com if you don't have one.
+2. From the `web/` folder, deploy: `npx vercel` (or connect the GitHub repo
+   in Vercel's dashboard with **Root Directory** set to `web`).
+3. In the Vercel project's Settings → Environment Variables, set
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (same values as your `.env`),
+   and `QUEUE_SECRET` (a passphrase you make up — this is what gates who can
+   submit storylines to your queue).
+4. Bookmark the deployed URL on your phone. Each day, open it, type a
+   storyline, enter your passphrase, submit.
+
 ## Running
 
 ```bash
 npm install
 cp .env.example .env   # fill in the keys above
 npm run auth:youtube   # one-time
-npm run run:daily      # generates + renders + uploads one video
 ```
+
+Then submit a storyline through the deployed web form, and run:
+
+```bash
+npm run run:daily   # picks up the queued storyline, renders, uploads
+```
+
+If nothing's in the queue, this exits with "No storyline queued today —
+skipping this run." and does nothing else — no render, no upload.
 
 ## Automating daily uploads
 
 Push this repo to GitHub, add every `.env` value as a repository secret
 (Settings → Secrets and variables → Actions), and the included workflow
-(`.github/workflows/daily.yml`) will run once a day and publish automatically.
-It also commits `state/used-stories.json` back so premises don't repeat
-across runs.
+(`.github/workflows/daily.yml`) will check the queue once a day and publish
+automatically whenever you've submitted a storyline through the form. It also
+commits `state/used-stories.json` back as a record of what's been posted.
 
 ## Things worth knowing before you scale this up
 

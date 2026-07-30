@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import "dotenv/config";
-import { generateScript } from "./generateScript.js";
+import { generateScript, NoStorylineQueuedError } from "./generateScript.js";
 import { synthesizeNarration } from "./tts.js";
 import { pickBroll } from "./pickBroll.js";
 import { assembleVideo } from "./assemble.js";
@@ -11,10 +11,19 @@ import { uploadToInstagram } from "./uploadInstagram.js";
 async function main() {
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
   const outDir = path.resolve(import.meta.dirname, "..", "render", runId);
-  await mkdir(outDir, { recursive: true });
 
-  console.log("Generating script...");
-  const story = await generateScript();
+  console.log("Checking for a queued storyline...");
+  let story;
+  try {
+    await mkdir(outDir, { recursive: true });
+    story = await generateScript();
+  } catch (err) {
+    if (err instanceof NoStorylineQueuedError) {
+      console.log("No storyline queued today — skipping this run.");
+      return;
+    }
+    throw err;
+  }
   console.log(`[${story.category}] ${story.title}`);
 
   console.log("Synthesizing narration...");
