@@ -1,0 +1,23 @@
+{
+  "categories": [
+    {
+      "id": "crime",
+      "label": "Crime",
+      "styleNotes": "Fictionalized crime/mystery short story. Do NOT use real people's names, real case names, or real victims. Invent all names and locations. Twist ending in the last line."
+    },
+    {
+      "id": "love",
+      "label": "Love",
+      "styleNotes": "Emotional short love story, bittersweet or heartwarming. Invent all characters. End on an emotional beat."
+    },
+    {
+      "id": "fun",
+      "label": "Fun",
+      "styleNotes": "Lighthearted, funny, or wholesome short story with a punchline or feel-good twist ending."
+    }
+  ],
+  "wordsPerStory": {
+    "min": 130,
+    "max": 160
+  }
+}
