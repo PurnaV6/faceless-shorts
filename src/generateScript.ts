@@ -43,10 +43,14 @@ async function saveState(state: UsedStoriesState): Promise<void> {
 const STYLE_GUARDRAILS =
   "Avoid generic AI-story clichés and stock phrases (e.g. 'sent shivers down her spine', 'little did she " +
   "know', 'the air was thick with', 'rippled through', 'mystery deepened', 'against all odds', 'echoed " +
-  "through the streets'). Write specific, concrete, sensory details grounded in this story's actual facts " +
-  "(names, times, places, objects) instead of vague atmospheric filler. Never place an em dash or en dash " +
-  "directly against a word with no space on either side (write 'gone — police searched', not " +
-  "'gone—police searched'); prefer a period or comma over a dash when in doubt.";
+  "through the streets'). Never place an em dash or en dash directly against a word with no space on either " +
+  "side (write 'gone — police searched', not 'gone—police searched'); prefer a period or comma over a dash " +
+  "when in doubt. " +
+  "CRITICAL: if the source material below contains specific concrete details — exact times, named objects, " +
+  "locations, quoted dialogue, physical evidence — you MUST keep every one of them in the script, close to " +
+  "verbatim. Do not paraphrase a specific detail into a vaguer one, and do not invent replacement details " +
+  "that weren't given to you. Specific facts are what make a story feel real; generic description is the " +
+  "failure mode to avoid. Only invent new details to fill genuine gaps the source didn't cover.";
 
 interface FreshScriptFields {
   category: Category;
@@ -160,7 +164,9 @@ async function generateContinuation(
           series.runningSummary
             ? `What has happened so far:\n${series.runningSummary}`
             : "This is the first episode — nothing has happened yet.",
-          `This episode's beat (episode ${episodeNumber} of ${totalEpisodes}): "${storyline}"`,
+          `Source material for episode ${episodeNumber} of ${totalEpisodes} — this is what THIS episode ` +
+            `must dramatize. Preserve every specific detail in it (per the CRITICAL instruction above): ` +
+            `"${storyline}"`,
           isFinal
             ? "This is the FINAL episode — resolve the story with a satisfying ending."
             : "End this episode on a cliffhanger — do not resolve the overall story yet.",
