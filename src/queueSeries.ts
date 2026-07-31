@@ -8,45 +8,64 @@ interface EpisodeBreakdown {
   episodes: string[];
 }
 
-async function breakIntoEpisodes(storyline: string, episodeCount: number): Promise<EpisodeBreakdown> {
+async function breakIntoEpisodes(
+  storyline: string,
+  episodeCount: number,
+  maxAttempts = 3,
+): Promise<EpisodeBreakdown> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content:
-          "You break a story premise into a serialized short-form video series outline. Output strict JSON " +
-          "only, no markdown.",
-      },
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content:
+        "You break a story premise into a serialized short-form video series outline. Output strict JSON " +
+        "only, no markdown.",
+    },
+    {
+      role: "user",
+      content: [
+        `Story premise: "${storyline}"`,
+        `Split this into EXACTLY ${episodeCount} episodes — not ${episodeCount - 1}, not ${episodeCount + 1}. ` +
+          `Count the items in your "episodes" array before responding and make sure it is exactly ${episodeCount}.`,
+        "Each episode beat should describe only what NEW happens in that episode (not a recap of prior " +
+          "episodes — that context gets carried forward separately at render time). Build rising tension " +
+          "across the episodes, with each of the first N-1 episodes ending on a hook. The final episode must " +
+          "resolve the story.",
+        `Return JSON with keys: series_title (short, punchy), episodes (array of exactly ${episodeCount} ` +
+          "strings, one beat per episode, in order).",
+      ].join("\n"),
+    },
+  ];
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages,
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) throw new Error("OpenAI returned no content for episode breakdown");
+    const parsed = JSON.parse(content) as EpisodeBreakdown;
+
+    if (parsed.episodes.length === episodeCount) return parsed;
+
+    console.log(
+      `Attempt ${attempt}: got ${parsed.episodes.length} episodes instead of ${episodeCount}, retrying...`,
+    );
+    messages.push(
+      { role: "assistant", content },
       {
         role: "user",
-        content: [
-          `Story premise: "${storyline}"`,
-          `Split this into exactly ${episodeCount} episodes.`,
-          "Each episode beat should describe only what NEW happens in that episode (not a recap of prior " +
-            "episodes — that context gets carried forward separately at render time). Build rising tension " +
-            "across the episodes, with each of the first N-1 episodes ending on a hook. The final episode must " +
-            "resolve the story.",
-          'Return JSON with keys: series_title (short, punchy), episodes (array of exactly ' +
-            `${episodeCount} strings, one beat per episode, in order).`,
-        ].join("\n"),
+        content:
+          `That had ${parsed.episodes.length} episodes, not ${episodeCount}. Return the corrected full JSON ` +
+          `again with EXACTLY ${episodeCount} episodes in the array.`,
       },
-    ],
-  });
-
-  const content = completion.choices[0]?.message?.content;
-  if (!content) throw new Error("OpenAI returned no content for episode breakdown");
-  const parsed = JSON.parse(content) as EpisodeBreakdown;
-
-  if (parsed.episodes.length !== episodeCount) {
-    throw new Error(
-      `Expected ${episodeCount} episodes, got ${parsed.episodes.length}. Try again.`,
     );
   }
-  return parsed;
+
+  throw new Error(`Failed to get exactly ${episodeCount} episodes after ${maxAttempts} attempts`);
 }
 
 async function main() {
