@@ -92,13 +92,14 @@ tier is limited; the Starter plan (~$5/mo) covers daily shorts comfortably.
    you're confident in the pipeline — that removes the 7-day limit.
 
 ### 4. Supabase
-Used for two things: (a) temporary public hosting so Instagram's API can
-fetch the rendered video by URL, and (b) the storyline queue the web form
-writes to.
+Used for three things: (a) temporary public hosting so Instagram's API can
+fetch the rendered video by URL, (b) the storyline queue the web form writes
+to, and (c) series continuity data (locked character/style/reference image,
+running plot summary).
 1. Create a project at https://supabase.com if you don't have one.
 2. Storage → create a public bucket, e.g. `faceless-shorts-renders`.
-3. SQL Editor → paste and run `supabase/queue.sql` to create the
-   `storyline_queue` table.
+3. SQL Editor → paste and run `supabase/queue.sql`, then `supabase/series.sql`,
+   to create the `storyline_queue` and `series` tables.
 4. Project Settings → API → copy the URL and the **service_role** key (not
    the anon key) → `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`.
 
@@ -151,6 +152,32 @@ Push this repo to GitHub, add every `.env` value as a repository secret
 (`.github/workflows/daily.yml`) will check the queue once a day and publish
 automatically whenever you've submitted a storyline through the form. It also
 commits `state/used-stories.json` back as a record of what's been posted.
+
+## Multi-episode series
+
+For a serialized story (same recurring character, one continuous plot cut
+into N cliffhanger episodes) instead of one-off videos:
+
+```bash
+npm run queue:series -- "<overall story premise>" 15
+```
+
+This asks OpenAI to break the premise into 15 episode beats (rising tension,
+final episode resolves), creates a `series` row, and queues all 15 as
+`storyline_queue` rows tagged with `series_id` + `episode_number` — the
+daily cron then posts one per day, in order, automatically.
+
+How continuity works under the hood:
+- **Episode 1** invents the character, art style, and narrator voice fresh —
+  same as a standalone video — then locks all three into the `series` row,
+  along with the actual reference image (uploaded to Supabase storage) that
+  every later episode's scenes get generated against via `images.edit`.
+- **Episodes 2-15** don't re-invent anything — they reuse the locked
+  character/style/voice verbatim and continue the plot using a running
+  summary that gets appended to after every episode renders.
+- If you submit a one-off storyline through the web form while a series is
+  mid-run, it queues behind the remaining series episodes (FIFO by
+  `created_at`) rather than interleaving with them.
 
 ## Things worth knowing before you scale this up
 

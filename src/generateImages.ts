@@ -4,6 +4,13 @@ import OpenAI, { toFile } from "openai";
 
 const SIZE = "1024x1536" as const;
 
+export interface SceneImagesResult {
+  imagePaths: string[];
+  // Local path to the canonical character reference image for this render.
+  // Callers only need to persist this (for series continuity) on episode 1.
+  referenceImagePath: string;
+}
+
 async function generateReferenceImage(
   openai: OpenAI,
   visualStyle: string,
@@ -29,9 +36,10 @@ async function generateReferenceImage(
   await writeFile(outPath, Buffer.from(image.b64_json, "base64"));
 }
 
-// Re-uses the reference image (always scene 0, not the previous scene) as
-// the character anchor for every later scene, so drift doesn't compound
-// across edits the way chaining edit -> edit -> edit would.
+// Generates one scene by editing the reference image, so the same character
+// (face/hair/build/outfit) recurs instead of drifting to a new-looking
+// person each time. Always edits from the single canonical reference image,
+// never chains edit -> edit -> edit, to avoid compounding drift.
 async function generateEditedScene(
   openai: OpenAI,
   referenceImagePath: string,
@@ -70,10 +78,36 @@ export async function generateSceneImages(
   visualStyle: string,
   characterDescription: string,
   outDir: string,
-): Promise<string[]> {
+  existingReferenceImageUrl?: string,
+): Promise<SceneImagesResult> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const imagePaths: string[] = [];
 
+  if (existingReferenceImageUrl) {
+    // Later series episodes: every scene, including the first, is a fresh
+    // moment that must still match the locked character from episode 1.
+    const referencePath = path.join(outDir, "series-reference.png");
+    const res = await fetch(existingReferenceImageUrl);
+    if (!res.ok) throw new Error(`Failed to download series reference image: ${res.status}`);
+    await writeFile(referencePath, Buffer.from(await res.arrayBuffer()));
+
+    const imagePaths: string[] = [];
+    for (let i = 0; i < scenePrompts.length; i++) {
+      const imagePath = path.join(outDir, `scene-${i}.png`);
+      await generateEditedScene(
+        openai,
+        referencePath,
+        visualStyle,
+        characterDescription,
+        scenePrompts[i],
+        imagePath,
+      );
+      imagePaths.push(imagePath);
+    }
+    return { imagePaths, referenceImagePath: referencePath };
+  }
+
+  // Standalone story, or episode 1 of a series: invent the character fresh.
+  const imagePaths: string[] = [];
   const referencePath = path.join(outDir, "scene-0.png");
   await generateReferenceImage(
     openai,
@@ -97,5 +131,5 @@ export async function generateSceneImages(
     imagePaths.push(imagePath);
   }
 
-  return imagePaths;
+  return { imagePaths, referenceImagePath: referencePath };
 }

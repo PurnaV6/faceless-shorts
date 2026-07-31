@@ -1,6 +1,13 @@
 export type Category = "crime" | "love" | "fun";
 export type NarratorGender = "male" | "female";
 
+export interface SeriesInfo {
+  seriesId: string;
+  episodeNumber: number;
+  totalEpisodes: number;
+  isFinalEpisode: boolean;
+}
+
 export interface StoryScript {
   id: string;
   category: Category;
@@ -12,6 +19,10 @@ export interface StoryScript {
   narratorGender: NarratorGender;
   scenePrompts: string[];
   createdAt: string;
+  series: SeriesInfo | null;
+  // Only set for series episode 1 — a short recap line to seed the series'
+  // running_summary so episode 2 has continuity context to build on.
+  episodeSummary: string | null;
 }
 
 export interface WordTimestamp {

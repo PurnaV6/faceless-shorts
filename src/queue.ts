@@ -4,6 +4,8 @@ export interface QueuedStoryline {
   id: string;
   storyline: string;
   createdAt: string;
+  seriesId: string | null;
+  episodeNumber: number | null;
 }
 
 function getClient() {
@@ -19,7 +21,7 @@ export async function fetchNextQueuedStoryline(): Promise<QueuedStoryline | null
   const supabase = getClient();
   const { data, error } = await supabase
     .from("storyline_queue")
-    .select("id, storyline, created_at")
+    .select("id, storyline, created_at, series_id, episode_number")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(1)
@@ -28,7 +30,13 @@ export async function fetchNextQueuedStoryline(): Promise<QueuedStoryline | null
   if (error) throw error;
   if (!data) return null;
 
-  return { id: data.id, storyline: data.storyline, createdAt: data.created_at };
+  return {
+    id: data.id,
+    storyline: data.storyline,
+    createdAt: data.created_at,
+    seriesId: data.series_id,
+    episodeNumber: data.episode_number,
+  };
 }
 
 export async function markQueuedStorylineUsed(id: string): Promise<void> {

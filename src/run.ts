@@ -7,6 +7,7 @@ import { generateSceneImages } from "./generateImages.js";
 import { assembleVideo } from "./assemble.js";
 import { uploadToYoutube } from "./uploadYoutube.js";
 import { uploadToInstagram } from "./uploadInstagram.js";
+import { fetchSeries, lockSeriesCharacter, uploadReferenceImage, appendToRunningSummary } from "./series.js";
 
 async function main() {
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
@@ -24,7 +25,11 @@ async function main() {
     }
     throw err;
   }
-  console.log(`[${story.category}] ${story.title}`);
+
+  const episodeTag = story.series
+    ? ` (Part ${story.series.episodeNumber}/${story.series.totalEpisodes})`
+    : "";
+  console.log(`[${story.category}] ${story.title}${episodeTag}`);
 
   const voiceId =
     story.narratorGender === "female"
@@ -40,17 +45,29 @@ async function main() {
   const narration = await synthesizeNarration(story.script, voiceId, outDir);
   console.log(`Narration duration: ${narration.durationSeconds.toFixed(1)}s`);
 
+  let existingReferenceImageUrl: string | undefined;
+  if (story.series && story.series.episodeNumber > 1) {
+    const series = await fetchSeries(story.series.seriesId);
+    if (!series.characterReferenceImageUrl) {
+      throw new Error(
+        `Series ${series.id} has no locked reference image yet — episode 1 must render successfully first`,
+      );
+    }
+    existingReferenceImageUrl = series.characterReferenceImageUrl;
+  }
+
   console.log(`Generating ${story.scenePrompts.length} scene images...`);
-  const imagePaths = await generateSceneImages(
+  const images = await generateSceneImages(
     story.scenePrompts,
     story.visualStyle,
     story.characterDescription,
     outDir,
+    existingReferenceImageUrl,
   );
 
   console.log("Assembling video...");
   const videoPath = await assembleVideo({
-    imagePaths,
+    imagePaths: images.imagePaths,
     audioPath: narration.audioPath,
     words: narration.words,
     durationSeconds: narration.durationSeconds,
@@ -58,13 +75,34 @@ async function main() {
   });
   console.log(`Rendered: ${videoPath}`);
 
-  const description = `${story.title}\n\n${story.hashtags.map((h) => `#${h}`).join(" ")}`;
+  if (story.series && story.series.episodeNumber === 1) {
+    console.log("Locking series character reference for future episodes...");
+    const referenceUrl = await uploadReferenceImage(story.series.seriesId, images.referenceImagePath);
+    await lockSeriesCharacter(story.series.seriesId, {
+      visualStyle: story.visualStyle,
+      characterDescription: story.characterDescription,
+      characterReferenceImageUrl: referenceUrl,
+      narratorGender: story.narratorGender,
+    });
+  }
+
+  if (story.series && story.episodeSummary) {
+    await appendToRunningSummary(
+      story.series.seriesId,
+      `Episode ${story.series.episodeNumber}: ${story.episodeSummary}`,
+    );
+  }
+
+  const displayTitle = story.series
+    ? `${story.title} — Part ${story.series.episodeNumber}/${story.series.totalEpisodes}`
+    : story.title;
+  const description = `${displayTitle}\n\n${story.hashtags.map((h) => `#${h}`).join(" ")}`;
 
   if (process.env.YOUTUBE_REFRESH_TOKEN) {
     console.log("Uploading to YouTube...");
     const videoId = await uploadToYoutube({
       videoPath,
-      title: story.title,
+      title: displayTitle,
       description,
       tags: story.hashtags,
     });
