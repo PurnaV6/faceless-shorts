@@ -66,11 +66,13 @@ depending on size/quality settings.
 
 ### 2. ElevenLabs
 Sign up at https://elevenlabs.io → Profile → API key → `ELEVENLABS_API_KEY`.
-Pick a voice from the Voice Library (or clone/design one) and copy its voice
-id → `ELEVENLABS_VOICE_ID`. This is the single biggest lever for how
-professional the narration sounds — worth spending a few minutes previewing
-voices before settling on one. Free tier is limited; the Starter plan
-(~$5/mo) covers daily shorts comfortably.
+Pick two voices from the Voice Library — one male, one female — and copy
+their voice ids → `ELEVENLABS_VOICE_ID` (male, also the fallback) and
+`ELEVENLABS_VOICE_ID_FEMALE`. `generateScript.ts` decides per-story which
+fits the narrator and `run.ts` picks the matching voice automatically. This
+is the single biggest lever for how professional the narration sounds —
+worth spending a few minutes previewing voices before settling on one. Free
+tier is limited; the Starter plan (~$5/mo) covers daily shorts comfortably.
 
 ### 3. YouTube
 1. Create a project at https://console.cloud.google.com/

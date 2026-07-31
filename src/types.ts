@@ -1,4 +1,5 @@
 export type Category = "crime" | "love" | "fun";
+export type NarratorGender = "male" | "female";
 
 export interface StoryScript {
   id: string;
@@ -8,6 +9,7 @@ export interface StoryScript {
   hashtags: string[];
   visualStyle: string;
   characterDescription: string;
+  narratorGender: NarratorGender;
   scenePrompts: string[];
   createdAt: string;
 }

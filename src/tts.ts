@@ -46,12 +46,12 @@ function alignmentToWords(alignment: ElevenLabsAlignment): WordTimestamp[] {
 
 export async function synthesizeNarration(
   script: string,
+  voiceId: string,
   outDir: string,
 ): Promise<NarrationResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
-  if (!apiKey || !voiceId) {
-    throw new Error("Missing ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID");
+  if (!apiKey) {
+    throw new Error("Missing ELEVENLABS_API_KEY");
   }
 
   const res = await fetch(

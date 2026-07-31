@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import OpenAI from "openai";
-import type { Category, StoryScript } from "./types.js";
+import type { Category, NarratorGender, StoryScript } from "./types.js";
 import { fetchNextQueuedStoryline, markQueuedStorylineUsed } from "./queue.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -75,7 +75,9 @@ export async function generateScript(): Promise<StoryScript> {
             "build, exact outfit/colors — detailed enough that the same character can be redrawn consistently " +
             "across multiple separate images; invented, not a real/identifiable person), scene_prompts (array " +
             "of exactly 5 short vivid visual descriptions, in story order, each depicting the main character in " +
-            "one key moment/setting from the script — no text or lettering in the image).",
+            "one key moment/setting from the script — no text or lettering in the image), narrator_gender " +
+            "(\"male\" or \"female\" — whichever voice best fits who is telling/experiencing this story; " +
+            "default to \"male\" if genuinely ambiguous).",
         ].join("\n"),
       },
     ],
@@ -92,6 +94,7 @@ export async function generateScript(): Promise<StoryScript> {
     visual_style: string;
     character_description: string;
     scene_prompts: string[];
+    narrator_gender: NarratorGender;
   };
 
   const storyScript: StoryScript = {
@@ -102,6 +105,7 @@ export async function generateScript(): Promise<StoryScript> {
     hashtags: parsed.hashtags,
     visualStyle: parsed.visual_style,
     characterDescription: parsed.character_description,
+    narratorGender: parsed.narrator_gender,
     scenePrompts: parsed.scene_prompts,
     createdAt: new Date().toISOString(),
   };

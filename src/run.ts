@@ -26,8 +26,18 @@ async function main() {
   }
   console.log(`[${story.category}] ${story.title}`);
 
-  console.log("Synthesizing narration...");
-  const narration = await synthesizeNarration(story.script, outDir);
+  const voiceId =
+    story.narratorGender === "female"
+      ? process.env.ELEVENLABS_VOICE_ID_FEMALE
+      : process.env.ELEVENLABS_VOICE_ID;
+  if (!voiceId) {
+    throw new Error(
+      `Missing ELEVENLABS_VOICE_ID${story.narratorGender === "female" ? "_FEMALE" : ""} for narrator_gender=${story.narratorGender}`,
+    );
+  }
+
+  console.log(`Synthesizing narration (${story.narratorGender} voice)...`);
+  const narration = await synthesizeNarration(story.script, voiceId, outDir);
   console.log(`Narration duration: ${narration.durationSeconds.toFixed(1)}s`);
 
   console.log(`Generating ${story.scenePrompts.length} scene images...`);
