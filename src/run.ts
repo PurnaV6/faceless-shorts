@@ -111,6 +111,13 @@ async function main() {
     : story.title;
   const description = `${displayTitle}\n\n${story.hashtags.map((h) => `#${h}`).join(" ")}`;
 
+  // Written alongside the video so `npm run publish -- <videoPath>` can
+  // upload it later without needing to re-run generation.
+  await writeFile(
+    path.join(outDir, "publish-info.json"),
+    JSON.stringify({ title: displayTitle, description, hashtags: story.hashtags }, null, 2),
+  );
+
   const summary: EpisodeSummaryOutput = {
     skipped: false,
     title: story.title,
@@ -120,27 +127,32 @@ async function main() {
     recap: story.episodeSummary ?? story.script.slice(0, 280),
   };
 
-  if (process.env.YOUTUBE_REFRESH_TOKEN) {
-    console.log("Uploading to YouTube...");
-    const videoId = await uploadToYoutube({
-      videoPath,
-      title: displayTitle,
-      description,
-      tags: story.hashtags,
-    });
-    console.log(`YouTube: https://youtube.com/shorts/${videoId}`);
-    summary.youtubeUrl = `https://youtube.com/shorts/${videoId}`;
+  if (process.env.SKIP_UPLOAD === "true") {
+    console.log(`Render-only mode (SKIP_UPLOAD=true) — nothing published. Video: ${videoPath}`);
+    console.log(`To publish this exact render later: npm run publish -- "${videoPath}"`);
   } else {
-    console.log("Skipping YouTube upload (no YOUTUBE_REFRESH_TOKEN set).");
-  }
+    if (process.env.YOUTUBE_REFRESH_TOKEN) {
+      console.log("Uploading to YouTube...");
+      const videoId = await uploadToYoutube({
+        videoPath,
+        title: displayTitle,
+        description,
+        tags: story.hashtags,
+      });
+      console.log(`YouTube: https://youtube.com/shorts/${videoId}`);
+      summary.youtubeUrl = `https://youtube.com/shorts/${videoId}`;
+    } else {
+      console.log("Skipping YouTube upload (no YOUTUBE_REFRESH_TOKEN set).");
+    }
 
-  if (process.env.IG_ACCESS_TOKEN) {
-    console.log("Uploading to Instagram...");
-    const igId = await uploadToInstagram({ videoPath, caption: description });
-    console.log(`Instagram media id: ${igId}`);
-    summary.instagramPosted = true;
-  } else {
-    console.log("Skipping Instagram upload (no IG_ACCESS_TOKEN set).");
+    if (process.env.IG_ACCESS_TOKEN) {
+      console.log("Uploading to Instagram...");
+      const igId = await uploadToInstagram({ videoPath, caption: description });
+      console.log(`Instagram media id: ${igId}`);
+      summary.instagramPosted = true;
+    } else {
+      console.log("Skipping Instagram upload (no IG_ACCESS_TOKEN set).");
+    }
   }
 
   await writeSummary(summary);

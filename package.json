@@ -7,6 +7,7 @@
     "auth:youtube": "tsx src/authYoutube.ts",
     "run:daily": "tsx src/run.ts",
     "queue:series": "tsx src/queueSeries.ts",
+    "publish": "tsx src/publish.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
