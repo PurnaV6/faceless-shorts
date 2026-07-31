@@ -15,13 +15,12 @@ async function generateReferenceImage(
   openai: OpenAI,
   visualStyle: string,
   characterDescription: string,
-  firstScenePrompt: string,
   outPath: string,
 ): Promise<void> {
   const prompt = [
     visualStyle,
-    `Main character: ${characterDescription}`,
-    `Scene: ${firstScenePrompt}`,
+    `Locked recurring cast: ${characterDescription}`,
+    "Create a single cinematic cast continuity reference showing every listed character clearly, with distinct faces, ages, hair, build, and exact outfit colours. Arrange them in a natural staggered group with no duplicate people. This image is a visual identity reference, not a story scene.",
     "Vertical 9:16 composition, no text, no lettering, no watermark.",
   ].join(". ");
 
@@ -49,7 +48,8 @@ async function generateEditedScene(
   outPath: string,
 ): Promise<void> {
   const prompt = [
-    `Keep the exact same character's face, hair, build, and outfit as shown in the reference image: ${characterDescription}`,
+    `The reference image is the locked cast sheet. Keep the exact same face, age, hair, build, and outfit for every character visible in the new scene. Locked cast: ${characterDescription}`,
+    "Show only the people explicitly named in the new scene; do not add the rest of the cast.",
     visualStyle,
     `New scene: ${scenePrompt}`,
     "Vertical 9:16 composition, no text, no lettering, no watermark.",
@@ -106,19 +106,20 @@ export async function generateSceneImages(
     return { imagePaths, referenceImagePath: referencePath };
   }
 
-  // Standalone story, or episode 1 of a series: invent the character fresh.
+  // Standalone story, or episode 1 of a series: create one locked cast
+  // reference first, then edit every actual scene from that same source.
+  // Keeping the reference separate prevents scene 1's composition from
+  // leaking into every later frame and supports a multi-character series.
   const imagePaths: string[] = [];
-  const referencePath = path.join(outDir, "scene-0.png");
+  const referencePath = path.join(outDir, "cast-reference.png");
   await generateReferenceImage(
     openai,
     visualStyle,
     characterDescription,
-    scenePrompts[0],
     referencePath,
   );
-  imagePaths.push(referencePath);
 
-  for (let i = 1; i < scenePrompts.length; i++) {
+  for (let i = 0; i < scenePrompts.length; i++) {
     const imagePath = path.join(outDir, `scene-${i}.png`);
     await generateEditedScene(
       openai,

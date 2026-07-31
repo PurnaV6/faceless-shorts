@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "auth:youtube": "tsx src/authYoutube.ts",
+    "publish:approved": "tsx src/publishApproved.ts",
     "run:daily": "tsx src/run.ts",
+    "queue:priya": "tsx src/queuePriyaSeries.ts",
     "queue:series": "tsx src/queueSeries.ts",
     "publish": "tsx src/publish.ts",
+    "test": "node --import tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

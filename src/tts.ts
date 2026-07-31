@@ -25,6 +25,16 @@ interface TimedChar {
   end: number;
 }
 
+function voiceSetting(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`);
+  }
+  return value;
+}
+
 // Splits on whitespace, and ALSO on internal em/en dashes even with no
 // surrounding space — ElevenLabs can render "word—word" as adjacent
 // characters with no space between them, which without this would collapse
@@ -94,13 +104,13 @@ export async function synthesizeNarration(
         // multilingual_v2 reads dramatic narration with noticeably more
         // natural prosody. Latency doesn't matter here (this isn't a live
         // conversation), so there's no reason to trade quality for speed.
-        model_id: "eleven_multilingual_v2",
+        model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
         voice_settings: {
           // Lower stability = more vocal variation/emotion (default 0.5
           // reads flat for storytelling); style adds expressive emphasis.
-          stability: 0.4,
-          similarity_boost: 0.8,
-          style: 0.35,
+          stability: voiceSetting("ELEVENLABS_STABILITY", 0.32),
+          similarity_boost: voiceSetting("ELEVENLABS_SIMILARITY", 0.82),
+          style: voiceSetting("ELEVENLABS_STYLE", 0.5),
           use_speaker_boost: true,
         },
       }),
