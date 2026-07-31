@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import "dotenv/config";
 import { generateScript, NoStorylineQueuedError } from "./generateScript.js";
@@ -8,6 +8,23 @@ import { assembleVideo } from "./assemble.js";
 import { uploadToYoutube } from "./uploadYoutube.js";
 import { uploadToInstagram } from "./uploadInstagram.js";
 import { fetchSeries, lockSeriesCharacter, uploadReferenceImage, appendToRunningSummary } from "./series.js";
+
+const SUMMARY_PATH = path.resolve(import.meta.dirname, "..", "episode-summary.json");
+
+interface EpisodeSummaryOutput {
+  skipped: boolean;
+  title?: string;
+  category?: string;
+  episodeNumber?: number;
+  totalEpisodes?: number;
+  recap?: string;
+  youtubeUrl?: string;
+  instagramPosted?: boolean;
+}
+
+async function writeSummary(summary: EpisodeSummaryOutput): Promise<void> {
+  await writeFile(SUMMARY_PATH, JSON.stringify(summary, null, 2));
+}
 
 async function main() {
   const runId = new Date().toISOString().replace(/[:.]/g, "-");
@@ -21,6 +38,7 @@ async function main() {
   } catch (err) {
     if (err instanceof NoStorylineQueuedError) {
       console.log("No storyline queued today — skipping this run.");
+      await writeSummary({ skipped: true });
       return;
     }
     throw err;
@@ -98,6 +116,15 @@ async function main() {
     : story.title;
   const description = `${displayTitle}\n\n${story.hashtags.map((h) => `#${h}`).join(" ")}`;
 
+  const summary: EpisodeSummaryOutput = {
+    skipped: false,
+    title: story.title,
+    category: story.category,
+    episodeNumber: story.series?.episodeNumber,
+    totalEpisodes: story.series?.totalEpisodes,
+    recap: story.episodeSummary ?? story.script.slice(0, 280),
+  };
+
   if (process.env.YOUTUBE_REFRESH_TOKEN) {
     console.log("Uploading to YouTube...");
     const videoId = await uploadToYoutube({
@@ -107,6 +134,7 @@ async function main() {
       tags: story.hashtags,
     });
     console.log(`YouTube: https://youtube.com/shorts/${videoId}`);
+    summary.youtubeUrl = `https://youtube.com/shorts/${videoId}`;
   } else {
     console.log("Skipping YouTube upload (no YOUTUBE_REFRESH_TOKEN set).");
   }
@@ -115,10 +143,12 @@ async function main() {
     console.log("Uploading to Instagram...");
     const igId = await uploadToInstagram({ videoPath, caption: description });
     console.log(`Instagram media id: ${igId}`);
+    summary.instagramPosted = true;
   } else {
     console.log("Skipping Instagram upload (no IG_ACCESS_TOKEN set).");
   }
 
+  await writeSummary(summary);
   console.log("Done.");
 }
 

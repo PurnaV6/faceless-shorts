@@ -9,6 +9,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +46,44 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: npm run run:daily
+
+      - name: Post episode summary as a GitHub issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f episode-summary.json ]; then
+            echo "No summary file found, skipping issue."
+            exit 0
+          fi
+          SKIPPED=$(python3 -c "import json; print(json.load(open('episode-summary.json'))['skipped'])")
+          if [ "$SKIPPED" = "True" ]; then
+            echo "Run was skipped (no storyline queued), skipping issue."
+            exit 0
+          fi
+
+          TITLE=$(python3 -c "
+          import json
+          d = json.load(open('episode-summary.json'))
+          ep, total = d.get('episodeNumber'), d.get('totalEpisodes')
+          tag = f' — Part {ep}/{total}' if ep else ''
+          print(f\"{d['title']}{tag}\")
+          ")
+
+          BODY=$(python3 -c "
+          import json
+          d = json.load(open('episode-summary.json'))
+          lines = [f\"**Category:** {d.get('category')}\"]
+          if d.get('episodeNumber'):
+              lines.append(f\"**Episode:** {d['episodeNumber']} of {d['totalEpisodes']}\")
+          lines += ['', d.get('recap', ''), '']
+          if d.get('youtubeUrl'):
+              lines.append(f\"YouTube: {d['youtubeUrl']}\")
+          if d.get('instagramPosted'):
+              lines.append('Also posted to Instagram.')
+          print(chr(10).join(lines))
+          ")
+
+          gh issue create --title "$TITLE" --body "$BODY"
 
       - name: Commit updated dedupe state
         run: |
