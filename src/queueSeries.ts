@@ -2,9 +2,14 @@ import "dotenv/config";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { createSeries } from "./series.js";
+import type { NarratorGender } from "./types.js";
 
 interface EpisodeBreakdown {
   series_title: string;
+  protagonist_name: string;
+  character_description: string;
+  visual_style: string;
+  narrator_gender: NarratorGender;
   episodes: string[];
 }
 
@@ -26,14 +31,25 @@ async function breakIntoEpisodes(
       role: "user",
       content: [
         `Story premise: "${storyline}"`,
-        `Split this into EXACTLY ${episodeCount} episodes — not ${episodeCount - 1}, not ${episodeCount + 1}. ` +
-          `Count the items in your "episodes" array before responding and make sure it is exactly ${episodeCount}.`,
+        "First, identify the ONE character whose journey we follow across the ENTIRE series — the " +
+          "through-line protagonist, not a character who disappears, dies, or exits early (e.g. in a mystery " +
+          "where someone goes missing, the protagonist is the person investigating/accused/searching, not the " +
+          "missing person). This character must physically appear in every single episode.",
+        `Split the premise into EXACTLY ${episodeCount} episodes — not ${episodeCount - 1}, not ` +
+          `${episodeCount + 1}. Count the items in your "episodes" array before responding.`,
         "Each episode beat should describe only what NEW happens in that episode (not a recap of prior " +
-          "episodes — that context gets carried forward separately at render time). Build rising tension " +
-          "across the episodes, with each of the first N-1 episodes ending on a hook. The final episode must " +
-          "resolve the story.",
-        `Return JSON with keys: series_title (short, punchy), episodes (array of exactly ${episodeCount} ` +
-          "strings, one beat per episode, in order).",
+          "episodes — that context gets carried forward separately at render time), and should be specific " +
+          "and concrete (named details, places, objects — not vague summary). Build rising tension across the " +
+          "episodes, with each of the first N-1 episodes ending on a hook. The final episode must resolve the " +
+          "story.",
+        "Return JSON with keys: series_title (short, punchy), protagonist_name (the through-line character's " +
+          "name), character_description (specific, detailed physical description of the protagonist — hair, " +
+          "face shape, build, exact outfit/colors — detailed enough to redraw consistently across many " +
+          "separate images; invented/fictionalized appearance even if the premise names a real-sounding " +
+          "person), visual_style (a short phrase for ONE consistent art style across every scene image, e.g. " +
+          "'moody cinematic 3D animated film style, desaturated blue tones, dramatic rim lighting'), " +
+          "narrator_gender (\"male\" or \"female\", matching the protagonist), " +
+          `episodes (array of exactly ${episodeCount} strings, one beat per episode, in order).`,
       ].join("\n"),
     },
   ];
@@ -80,9 +96,18 @@ async function main() {
   console.log(`Breaking storyline into ${episodeCount} episodes...`);
   const breakdown = await breakIntoEpisodes(storyline, episodeCount);
   console.log(`Series: "${breakdown.series_title}"`);
+  console.log(`Protagonist: ${breakdown.protagonist_name} (${breakdown.narrator_gender} narrator)`);
+  console.log(`Character: ${breakdown.character_description}`);
+  console.log(`Visual style: ${breakdown.visual_style}`);
   breakdown.episodes.forEach((beat, i) => console.log(`  Episode ${i + 1}: ${beat}`));
 
-  const seriesId = await createSeries(breakdown.series_title, episodeCount);
+  const seriesId = await createSeries({
+    title: breakdown.series_title,
+    totalEpisodes: episodeCount,
+    visualStyle: breakdown.visual_style,
+    characterDescription: breakdown.character_description,
+    narratorGender: breakdown.narrator_gender,
+  });
   console.log(`Created series ${seriesId}`);
 
   const supabaseUrl = process.env.SUPABASE_URL;

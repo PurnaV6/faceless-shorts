@@ -7,7 +7,7 @@ import { generateSceneImages } from "./generateImages.js";
 import { assembleVideo } from "./assemble.js";
 import { uploadToYoutube } from "./uploadYoutube.js";
 import { uploadToInstagram } from "./uploadInstagram.js";
-import { fetchSeries, lockSeriesCharacter, uploadReferenceImage, appendToRunningSummary } from "./series.js";
+import { fetchSeries, lockReferenceImage, uploadReferenceImage, appendToRunningSummary } from "./series.js";
 
 const SUMMARY_PATH = path.resolve(import.meta.dirname, "..", "episode-summary.json");
 
@@ -94,14 +94,9 @@ async function main() {
   console.log(`Rendered: ${videoPath}`);
 
   if (story.series && story.series.episodeNumber === 1) {
-    console.log("Locking series character reference for future episodes...");
+    console.log("Locking series reference image for future episodes...");
     const referenceUrl = await uploadReferenceImage(story.series.seriesId, images.referenceImagePath);
-    await lockSeriesCharacter(story.series.seriesId, {
-      visualStyle: story.visualStyle,
-      characterDescription: story.characterDescription,
-      characterReferenceImageUrl: referenceUrl,
-      narratorGender: story.narratorGender,
-    });
+    await lockReferenceImage(story.series.seriesId, referenceUrl);
   }
 
   if (story.series && story.episodeSummary) {

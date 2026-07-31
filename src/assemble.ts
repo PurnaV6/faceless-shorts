@@ -21,17 +21,35 @@ function formatSrtTime(seconds: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(msRem).padStart(3, "0")}`;
 }
 
-function buildSrt(words: WordTimestamp[], groupSize = 2): string {
+// Groups words into caption cues up to maxGroupSize, but breaks early at
+// sentence/clause punctuation so a cue never straddles a sentence boundary
+// (e.g. "gone. Panic") or sits on screen too long because it happened to
+// land on a natural pause (a dash, comma, etc).
+const CAPTION_BREAK_PATTERN = /[.,!?;:—–]['"’”]?$/;
+
+function buildSrt(words: WordTimestamp[], maxGroupSize = 3): string {
   const lines: string[] = [];
   let index = 1;
-  for (let i = 0; i < words.length; i += groupSize) {
-    const group = words.slice(i, i + groupSize);
+  let group: WordTimestamp[] = [];
+
+  const flush = () => {
+    if (group.length === 0) return;
     const start = group[0].start;
     const end = group[group.length - 1].end;
     const text = group.map((w) => w.word).join(" ");
     lines.push(`${index}`, `${formatSrtTime(start)} --> ${formatSrtTime(end)}`, text, "");
     index += 1;
+    group = [];
+  };
+
+  for (const word of words) {
+    group.push(word);
+    if (group.length >= maxGroupSize || CAPTION_BREAK_PATTERN.test(word.word)) {
+      flush();
+    }
   }
+  flush();
+
   return lines.join("\n");
 }
 

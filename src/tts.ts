@@ -19,27 +19,53 @@ interface ElevenLabsResponse {
   alignment: ElevenLabsAlignment;
 }
 
+interface TimedChar {
+  ch: string;
+  start: number;
+  end: number;
+}
+
+// Splits on whitespace, and ALSO on internal em/en dashes even with no
+// surrounding space — ElevenLabs can render "word—word" as adjacent
+// characters with no space between them, which without this would collapse
+// into one oversized caption card that sits on screen far too long.
 function alignmentToWords(alignment: ElevenLabsAlignment): WordTimestamp[] {
   const words: WordTimestamp[] = [];
-  let buffer = "";
-  let wordStart: number | null = null;
-  let wordEnd = 0;
+  let buffer: TimedChar[] = [];
+
+  const flushBuffer = () => {
+    if (buffer.length === 0) return;
+    let sub: TimedChar[] = [];
+    const flushSub = () => {
+      if (sub.length === 0) return;
+      words.push({
+        word: sub.map((c) => c.ch).join(""),
+        start: sub[0].start,
+        end: sub[sub.length - 1].end,
+      });
+      sub = [];
+    };
+    for (const c of buffer) {
+      sub.push(c);
+      if (c.ch === "—" || c.ch === "–") flushSub();
+    }
+    flushSub();
+    buffer = [];
+  };
 
   for (let i = 0; i < alignment.characters.length; i++) {
     const ch = alignment.characters[i];
     if (ch.trim() === "") {
-      if (buffer) {
-        words.push({ word: buffer, start: wordStart ?? 0, end: wordEnd });
-        buffer = "";
-        wordStart = null;
-      }
+      flushBuffer();
       continue;
     }
-    if (wordStart === null) wordStart = alignment.character_start_times_seconds[i];
-    wordEnd = alignment.character_end_times_seconds[i];
-    buffer += ch;
+    buffer.push({
+      ch,
+      start: alignment.character_start_times_seconds[i],
+      end: alignment.character_end_times_seconds[i],
+    });
   }
-  if (buffer) words.push({ word: buffer, start: wordStart ?? 0, end: wordEnd });
+  flushBuffer();
 
   return words;
 }
@@ -64,7 +90,19 @@ export async function synthesizeNarration(
       },
       body: JSON.stringify({
         text: script,
-        model_id: "eleven_turbo_v2_5",
+        // eleven_turbo_v2_5 is tuned for low latency, not expressiveness —
+        // multilingual_v2 reads dramatic narration with noticeably more
+        // natural prosody. Latency doesn't matter here (this isn't a live
+        // conversation), so there's no reason to trade quality for speed.
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          // Lower stability = more vocal variation/emotion (default 0.5
+          // reads flat for storytelling); style adds expressive emphasis.
+          stability: 0.4,
+          similarity_boost: 0.8,
+          style: 0.35,
+          use_speaker_boost: true,
+        },
       }),
     },
   );

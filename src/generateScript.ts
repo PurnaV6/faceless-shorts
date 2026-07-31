@@ -35,6 +35,19 @@ async function saveState(state: UsedStoriesState): Promise<void> {
   await writeFile(STATE_PATH, JSON.stringify(state, null, 2));
 }
 
+// Shared writing-quality guardrails: avoids the two concrete defects a real
+// test run surfaced — stock AI phrasing, and dash-glued words that break
+// word-level caption timing (an em/en dash with no surrounding space reads
+// as a single "word" to the timestamp aligner, so its caption card sits on
+// screen far too long).
+const STYLE_GUARDRAILS =
+  "Avoid generic AI-story clichés and stock phrases (e.g. 'sent shivers down her spine', 'little did she " +
+  "know', 'the air was thick with', 'rippled through', 'mystery deepened', 'against all odds', 'echoed " +
+  "through the streets'). Write specific, concrete, sensory details grounded in this story's actual facts " +
+  "(names, times, places, objects) instead of vague atmospheric filler. Never place an em dash or en dash " +
+  "directly against a word with no space on either side (write 'gone — police searched', not " +
+  "'gone—police searched'); prefer a period or comma over a dash when in doubt.";
+
 interface FreshScriptFields {
   category: Category;
   title: string;
@@ -56,21 +69,14 @@ interface ContinuationScriptFields {
   episode_summary: string;
 }
 
-// Standalone stories, and episode 1 of a series: the model invents the
-// character, art style, and (for a series) sets up the ongoing premise.
+// Standalone (non-series) stories: the model invents the character and art
+// style fresh from just this one storyline.
 async function generateFresh(
   openai: OpenAI,
   storyline: string,
   categorySummaries: string,
   wordsPerStory: { min: number; max: number },
-  seriesContext: { episodeNumber: number; totalEpisodes: number } | null,
 ): Promise<FreshScriptFields> {
-  const seriesNote = seriesContext
-    ? `This is episode ${seriesContext.episodeNumber} of ${seriesContext.totalEpisodes} in an ongoing ` +
-      "serialized story. Set up the premise and end this episode on a cliffhanger — do not resolve the " +
-      "story yet, later episodes will continue it."
-    : "";
-
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -82,13 +88,12 @@ async function generateFresh(
           "faceless story Short/Reel. Output strict JSON only, no markdown. Keep the user's premise and " +
           "intent intact, but fictionalize any real names/people/events the user references — never let the " +
           "final script identify a real person or a real news event. The script must read aloud in 45-60 " +
-          "seconds by a single narrator.",
+          `seconds by a single narrator. ${STYLE_GUARDRAILS}`,
       },
       {
         role: "user",
         content: [
           `User's storyline idea: "${storyline}"`,
-          seriesNote,
           "Category options (pick the closest fit):",
           categorySummaries,
           `Length: ${wordsPerStory.min}-${wordsPerStory.max} words.`,
@@ -106,9 +111,7 @@ async function generateFresh(
             "(\"male\" or \"female\" — whichever voice best fits who is telling/experiencing this story; " +
             "default to \"male\" if genuinely ambiguous), episode_summary (1-2 sentence recap of what happens " +
             "in this episode, written as context notes for writing a sequel).",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        ].join("\n"),
       },
     ],
   });
@@ -118,9 +121,10 @@ async function generateFresh(
   return JSON.parse(content) as FreshScriptFields;
 }
 
-// Episode 2+ of a series: character/style/voice are already locked, so the
-// model only continues the plot using the running summary + this episode's
-// beat.
+// Every series episode (including episode 1): character/style/voice are
+// already locked on the series row from queueSeries, so the model only
+// writes this episode's script using the running summary + this episode's
+// beat — it never invents or re-derives the protagonist.
 async function generateContinuation(
   openai: OpenAI,
   storyline: string,
@@ -143,17 +147,19 @@ async function generateContinuation(
       {
         role: "system",
         content:
-          "You continue an ongoing serialized short-form narration script for a faceless story Short/Reel. " +
-          "Output strict JSON only, no markdown. Keep continuity with what's already happened. Fictionalize " +
-          "any real names/people/events — never identify a real person or real news event. The script must " +
-          "read aloud in 45-60 seconds by a single narrator.",
+          "You write one episode of an ongoing serialized short-form narration script for a faceless story " +
+          "Short/Reel. Output strict JSON only, no markdown. Keep continuity with what's already happened. " +
+          "Fictionalize any real names/people/events — never identify a real person or real news event. The " +
+          `script must read aloud in 45-60 seconds by a single narrator. ${STYLE_GUARDRAILS}`,
       },
       {
         role: "user",
         content: [
           `Series: "${series.title}"`,
-          `Established main character: ${series.characterDescription}`,
-          `What has happened so far:\n${series.runningSummary}`,
+          `Established main character (appears in every episode): ${series.characterDescription}`,
+          series.runningSummary
+            ? `What has happened so far:\n${series.runningSummary}`
+            : "This is the first episode — nothing has happened yet.",
           `This episode's beat (episode ${episodeNumber} of ${totalEpisodes}): "${storyline}"`,
           isFinal
             ? "This is the FINAL episode — resolve the story with a satisfying ending."
@@ -189,12 +195,11 @@ export async function generateScript(): Promise<StoryScript> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const isSeriesEpisode = queued.seriesId !== null && queued.episodeNumber !== null;
-  const isFirstEpisode = isSeriesEpisode && queued.episodeNumber === 1;
 
   let storyScript: StoryScript;
 
   if (!isSeriesEpisode) {
-    const parsed = await generateFresh(openai, queued.storyline, categorySummaries, topics.wordsPerStory, null);
+    const parsed = await generateFresh(openai, queued.storyline, categorySummaries, topics.wordsPerStory);
     storyScript = {
       id: randomUUID(),
       category: parsed.category,
@@ -213,65 +218,38 @@ export async function generateScript(): Promise<StoryScript> {
     const series = await fetchSeries(queued.seriesId!);
     const episodeNumber = queued.episodeNumber!;
 
-    if (isFirstEpisode) {
-      const parsed = await generateFresh(openai, queued.storyline, categorySummaries, topics.wordsPerStory, {
+    if (!series.characterDescription || !series.visualStyle || !series.narratorGender) {
+      throw new Error(`Series ${series.id} is missing its locked character/style/voice — check createSeries`);
+    }
+
+    const parsed = await generateContinuation(
+      openai,
+      queued.storyline,
+      categorySummaries,
+      topics.wordsPerStory,
+      { title: series.title, characterDescription: series.characterDescription, runningSummary: series.runningSummary },
+      episodeNumber,
+      series.totalEpisodes,
+    );
+    storyScript = {
+      id: randomUUID(),
+      category: parsed.category,
+      title: parsed.title,
+      script: parsed.script,
+      hashtags: parsed.hashtags,
+      visualStyle: series.visualStyle,
+      characterDescription: series.characterDescription,
+      narratorGender: series.narratorGender,
+      scenePrompts: parsed.scene_prompts,
+      createdAt: new Date().toISOString(),
+      series: {
+        seriesId: series.id,
         episodeNumber,
         totalEpisodes: series.totalEpisodes,
-      });
-      storyScript = {
-        id: randomUUID(),
-        category: parsed.category,
-        title: parsed.title,
-        script: parsed.script,
-        hashtags: parsed.hashtags,
-        visualStyle: parsed.visual_style,
-        characterDescription: parsed.character_description,
-        narratorGender: parsed.narrator_gender,
-        scenePrompts: parsed.scene_prompts,
-        createdAt: new Date().toISOString(),
-        series: {
-          seriesId: series.id,
-          episodeNumber,
-          totalEpisodes: series.totalEpisodes,
-          isFinalEpisode: episodeNumber >= series.totalEpisodes,
-        },
-        episodeSummary: parsed.episode_summary,
-      };
-    } else {
-      if (!series.characterDescription || !series.visualStyle || !series.narratorGender) {
-        throw new Error(
-          `Series ${series.id} has no locked character yet — episode 1 must render successfully first`,
-        );
-      }
-      const parsed = await generateContinuation(
-        openai,
-        queued.storyline,
-        categorySummaries,
-        topics.wordsPerStory,
-        { title: series.title, characterDescription: series.characterDescription, runningSummary: series.runningSummary },
-        episodeNumber,
-        series.totalEpisodes,
-      );
-      storyScript = {
-        id: randomUUID(),
-        category: parsed.category,
-        title: parsed.title,
-        script: parsed.script,
-        hashtags: parsed.hashtags,
-        visualStyle: series.visualStyle,
-        characterDescription: series.characterDescription,
-        narratorGender: series.narratorGender,
-        scenePrompts: parsed.scene_prompts,
-        createdAt: new Date().toISOString(),
-        series: {
-          seriesId: series.id,
-          episodeNumber,
-          totalEpisodes: series.totalEpisodes,
-          isFinalEpisode: episodeNumber >= series.totalEpisodes,
-        },
-        episodeSummary: parsed.episode_summary,
-      };
-    }
+        isFinalEpisode: episodeNumber >= series.totalEpisodes,
+      },
+      episodeSummary: parsed.episode_summary,
+    };
   }
 
   const state = await loadState();

@@ -22,11 +22,28 @@ function getClient() {
   return createClient(url, serviceKey);
 }
 
-export async function createSeries(title: string, totalEpisodes: number): Promise<string> {
+// The protagonist/style/voice are fixed here, from the FULL series premise,
+// at creation time — not left for episode 1 to invent from just its own
+// beat, which in practice tends to lock onto whichever character that one
+// beat happens to center on (e.g. a victim who disappears in episode 1)
+// rather than the actual through-line protagonist.
+export async function createSeries(params: {
+  title: string;
+  totalEpisodes: number;
+  visualStyle: string;
+  characterDescription: string;
+  narratorGender: NarratorGender;
+}): Promise<string> {
   const supabase = getClient();
   const { data, error } = await supabase
     .from("series")
-    .insert({ title, total_episodes: totalEpisodes })
+    .insert({
+      title: params.title,
+      total_episodes: params.totalEpisodes,
+      visual_style: params.visualStyle,
+      character_description: params.characterDescription,
+      narrator_gender: params.narratorGender,
+    })
     .select("id")
     .single();
   if (error) throw error;
@@ -56,27 +73,13 @@ export async function fetchSeries(seriesId: string): Promise<Series> {
   };
 }
 
-// Called once, after episode 1 renders — locks the character/style/voice/
-// reference image so every later episode reuses them verbatim instead of
-// re-inventing.
-export async function lockSeriesCharacter(
-  seriesId: string,
-  params: {
-    visualStyle: string;
-    characterDescription: string;
-    characterReferenceImageUrl: string;
-    narratorGender: NarratorGender;
-  },
-): Promise<void> {
+// Called once, after episode 1 renders — locks in the actual reference
+// image (character/style/voice are already fixed from createSeries).
+export async function lockReferenceImage(seriesId: string, characterReferenceImageUrl: string): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase
     .from("series")
-    .update({
-      visual_style: params.visualStyle,
-      character_description: params.characterDescription,
-      character_reference_image_url: params.characterReferenceImageUrl,
-      narrator_gender: params.narratorGender,
-    })
+    .update({ character_reference_image_url: characterReferenceImageUrl })
     .eq("id", seriesId);
   if (error) throw error;
 }
