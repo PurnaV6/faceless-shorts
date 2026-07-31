@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import type { NarratorGender } from "./types.js";
+import { uploadPublicFile } from "./storage.js";
 
 export interface Series {
   id: string;
@@ -88,20 +88,7 @@ export async function lockReferenceImage(seriesId: string, characterReferenceIma
 // bucket used for renders, so later episodes can download it as their
 // images.edit input.
 export async function uploadReferenceImage(seriesId: string, localImagePath: string): Promise<string> {
-  const bucket = process.env.SUPABASE_BUCKET;
-  if (!bucket) throw new Error("Missing SUPABASE_BUCKET");
-
-  const supabase = getClient();
-  const fileName = `series-references/${seriesId}.png`;
-  const fileBuffer = await readFile(localImagePath);
-
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(fileName, fileBuffer, { contentType: "image/png", upsert: true });
-  if (uploadError) throw uploadError;
-
-  const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-  return data.publicUrl;
+  return uploadPublicFile(`series-references/${seriesId}.png`, localImagePath, "image/png");
 }
 
 export async function appendToRunningSummary(seriesId: string, addition: string): Promise<void> {

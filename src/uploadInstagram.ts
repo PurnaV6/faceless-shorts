@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { uploadPublicFile } from "./storage.js";
 
 const GRAPH_VERSION = "v19.0";
 
@@ -9,24 +8,7 @@ async function sleep(ms: number) {
 }
 
 async function uploadToSupabase(videoPath: string): Promise<string> {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket = process.env.SUPABASE_BUCKET;
-  if (!url || !serviceKey || !bucket) {
-    throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_BUCKET");
-  }
-
-  const supabase = createClient(url, serviceKey);
-  const fileName = `${Date.now()}-${path.basename(videoPath)}`;
-  const fileBuffer = await readFile(videoPath);
-
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(fileName, fileBuffer, { contentType: "video/mp4", upsert: false });
-  if (uploadError) throw uploadError;
-
-  const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-  return data.publicUrl;
+  return uploadPublicFile(`${Date.now()}-${path.basename(videoPath)}`, videoPath, "video/mp4");
 }
 
 async function graphRequest(pathSegment: string, params: Record<string, string>) {

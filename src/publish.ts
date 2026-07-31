@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import "dotenv/config";
 import { uploadToYoutube } from "./uploadYoutube.js";
@@ -10,16 +11,38 @@ interface PublishInfo {
   hashtags: string[];
 }
 
+async function resolveVideoAndInfo(source: string): Promise<{ videoPath: string; info: PublishInfo }> {
+  if (!source.startsWith("http://") && !source.startsWith("https://")) {
+    const infoPath = path.join(path.dirname(source), "publish-info.json");
+    const info = JSON.parse(await readFile(infoPath, "utf-8")) as PublishInfo;
+    return { videoPath: source, info };
+  }
+
+  // Preview URLs from a SKIP_UPLOAD render: <key>.mp4 with a sibling
+  // <key>.json holding the same metadata publish-info.json would have.
+  const infoUrl = source.replace(/\.mp4($|\?)/, ".json$1");
+  const [videoRes, infoRes] = await Promise.all([fetch(source), fetch(infoUrl)]);
+  if (!videoRes.ok) throw new Error(`Failed to download video: ${videoRes.status}`);
+  if (!infoRes.ok) throw new Error(`Failed to download publish info: ${infoRes.status}`);
+
+  const dir = await mkdtemp(path.join(tmpdir(), "publish-"));
+  const videoPath = path.join(dir, "video.mp4");
+  await writeFile(videoPath, Buffer.from(await videoRes.arrayBuffer()));
+  const info = (await infoRes.json()) as PublishInfo;
+
+  return { videoPath, info };
+}
+
 async function main() {
-  const videoPath = process.argv[2];
-  if (!videoPath) {
-    console.error('Usage: npm run publish -- "<path to final.mp4 from a SKIP_UPLOAD render>"');
+  const source = process.argv[2];
+  if (!source) {
+    console.error(
+      'Usage: npm run publish -- "<local final.mp4 path, or a pending-review preview URL>"',
+    );
     process.exit(1);
   }
 
-  const infoPath = path.join(path.dirname(videoPath), "publish-info.json");
-  const info = JSON.parse(await readFile(infoPath, "utf-8")) as PublishInfo;
-
+  const { videoPath, info } = await resolveVideoAndInfo(source);
   console.log(`Publishing: ${info.title}`);
 
   if (process.env.YOUTUBE_REFRESH_TOKEN) {

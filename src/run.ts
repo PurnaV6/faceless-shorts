@@ -8,6 +8,7 @@ import { assembleVideo } from "./assemble.js";
 import { uploadToYoutube } from "./uploadYoutube.js";
 import { uploadToInstagram } from "./uploadInstagram.js";
 import { fetchSeries, lockReferenceImage, uploadReferenceImage, appendToRunningSummary } from "./series.js";
+import { uploadPublicFile, uploadPublicJson } from "./storage.js";
 
 const SUMMARY_PATH = path.resolve(import.meta.dirname, "..", "episode-summary.json");
 
@@ -20,6 +21,8 @@ interface EpisodeSummaryOutput {
   recap?: string;
   youtubeUrl?: string;
   instagramPosted?: boolean;
+  previewUrl?: string;
+  publishCommand?: string;
 }
 
 async function writeSummary(summary: EpisodeSummaryOutput): Promise<void> {
@@ -128,8 +131,13 @@ async function main() {
   };
 
   if (process.env.SKIP_UPLOAD === "true") {
-    console.log(`Render-only mode (SKIP_UPLOAD=true) — nothing published. Video: ${videoPath}`);
-    console.log(`To publish this exact render later: npm run publish -- "${videoPath}"`);
+    console.log("Render-only mode (SKIP_UPLOAD=true) — uploading a preview copy for review, not publishing...");
+    const reviewKey = `pending-review/${runId}`;
+    const previewUrl = await uploadPublicFile(`${reviewKey}.mp4`, videoPath, "video/mp4");
+    await uploadPublicJson(`${reviewKey}.json`, { title: displayTitle, description, hashtags: story.hashtags });
+    console.log(`Preview: ${previewUrl}`);
+    summary.previewUrl = previewUrl;
+    summary.publishCommand = `npm run publish -- "${previewUrl}"`;
   } else {
     if (process.env.YOUTUBE_REFRESH_TOKEN) {
       console.log("Uploading to YouTube...");

@@ -33,6 +33,10 @@ jobs:
 
       - name: Run daily pipeline
         env:
+          # Every episode is rendered and uploaded to a private preview URL,
+          # never auto-published — see the GitHub issue this step creates
+          # for the review link and the exact command to publish it.
+          SKIP_UPLOAD: "true"
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
@@ -76,6 +80,11 @@ jobs:
           if d.get('episodeNumber'):
               lines.append(f\"**Episode:** {d['episodeNumber']} of {d['totalEpisodes']}\")
           lines += ['', d.get('recap', ''), '']
+          if d.get('previewUrl'):
+              lines.append(f\"**Preview (not published):** {d['previewUrl']}\")
+              lines.append('')
+              lines.append('Nothing has been posted anywhere yet. To publish this exact episode, run:')
+              lines.append(f\"\`{d.get('publishCommand', '')}\`\")
           if d.get('youtubeUrl'):
               lines.append(f\"YouTube: {d['youtubeUrl']}\")
           if d.get('instagramPosted'):
