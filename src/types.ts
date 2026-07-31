@@ -6,7 +6,8 @@ export interface StoryScript {
   title: string;
   script: string;
   hashtags: string[];
-  brollKeywords: string[];
+  visualStyle: string;
+  scenePrompts: string[];
   createdAt: string;
 }
 

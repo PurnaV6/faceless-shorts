@@ -3,7 +3,7 @@ import path from "node:path";
 import "dotenv/config";
 import { generateScript, NoStorylineQueuedError } from "./generateScript.js";
 import { synthesizeNarration } from "./tts.js";
-import { pickBroll } from "./pickBroll.js";
+import { generateSceneImages } from "./generateImages.js";
 import { assembleVideo } from "./assemble.js";
 import { uploadToYoutube } from "./uploadYoutube.js";
 import { uploadToInstagram } from "./uploadInstagram.js";
@@ -30,12 +30,12 @@ async function main() {
   const narration = await synthesizeNarration(story.script, outDir);
   console.log(`Narration duration: ${narration.durationSeconds.toFixed(1)}s`);
 
-  console.log("Picking b-roll...");
-  const brollPath = await pickBroll(story.brollKeywords, outDir, narration.durationSeconds);
+  console.log(`Generating ${story.scenePrompts.length} scene images...`);
+  const imagePaths = await generateSceneImages(story.scenePrompts, story.visualStyle, outDir);
 
   console.log("Assembling video...");
   const videoPath = await assembleVideo({
-    brollPath,
+    imagePaths,
     audioPath: narration.audioPath,
     words: narration.words,
     durationSeconds: narration.durationSeconds,

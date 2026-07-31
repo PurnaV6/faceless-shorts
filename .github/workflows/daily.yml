@@ -17,7 +17,13 @@ jobs:
           node-version: 22
 
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          # Ubuntu's ffmpeg package ships with libass, but fail fast and
+          # clearly here instead of deep inside a filter_complex error.
+          ffmpeg -filters 2>/dev/null | grep -q subtitles || {
+            echo "::error::ffmpeg is missing the subtitles filter (libass)"; exit 1;
+          }
 
       - name: Install dependencies
         run: npm ci
@@ -25,7 +31,8 @@ jobs:
       - name: Run daily pipeline
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}

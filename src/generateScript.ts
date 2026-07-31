@@ -67,9 +67,12 @@ export async function generateScript(): Promise<StoryScript> {
           `Length: ${topics.wordsPerStory.min}-${topics.wordsPerStory.max} words.`,
           "Return JSON with keys: category (one of the category ids above), title (string, <=60 chars, punchy), " +
             "script (string, the full narration expanding the user's idea into a complete story with a hook and " +
-            "an ending), hashtags (array of 6-10 strings without # symbol), broll_keywords (array of 3-5 short " +
-            "search terms for stock background video footage that visually fits the mood of this story, e.g. " +
-            "'rain city street at night').",
+            "an ending), hashtags (array of 6-10 strings without # symbol), visual_style (a short phrase " +
+            "describing ONE consistent art style for every scene image, e.g. 'moody cinematic digital painting, " +
+            "desaturated blue tones, dramatic lighting' — this phrase will be prefixed to every scene prompt so " +
+            "the video looks visually cohesive), scene_prompts (array of exactly 5 short vivid visual " +
+            "descriptions, in story order, each depicting one key moment/setting from the script — no text or " +
+            "lettering in the image, no real people's likenesses).",
         ].join("\n"),
       },
     ],
@@ -83,7 +86,8 @@ export async function generateScript(): Promise<StoryScript> {
     title: string;
     script: string;
     hashtags: string[];
-    broll_keywords: string[];
+    visual_style: string;
+    scene_prompts: string[];
   };
 
   const storyScript: StoryScript = {
@@ -92,7 +96,8 @@ export async function generateScript(): Promise<StoryScript> {
     title: parsed.title,
     script: parsed.script,
     hashtags: parsed.hashtags,
-    brollKeywords: parsed.broll_keywords,
+    visualStyle: parsed.visual_style,
+    scenePrompts: parsed.scene_prompts,
     createdAt: new Date().toISOString(),
   };
 

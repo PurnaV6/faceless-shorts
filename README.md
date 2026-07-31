@@ -1,9 +1,11 @@
 # Faceless Shorts Pipeline
 
 You submit a one-line storyline through a private web form. The pipeline
-expands it into a full narration script, voices it, lays it over stock b-roll
-with burned-in captions, and publishes it to YouTube Shorts and Instagram
-Reels — once a day, only on days you've actually submitted a storyline.
+expands it into a full narration script, voices it with ElevenLabs, generates
+a set of AI scene images in one consistent art style, animates them with
+Ken Burns pans/zooms, burns in captions, and publishes it to YouTube Shorts
+and Instagram Reels — once a day, only on days you've actually submitted a
+storyline.
 
 ## What it does
 
@@ -12,15 +14,16 @@ Reels — once a day, only on days you've actually submitted a storyline.
    (`storyline_queue`).
 1. `generateScript.ts` — pulls the oldest pending storyline from the queue
    and asks OpenAI to expand it into a full ~45-60s fictional script,
-   classifying it into crime/love/fun and fictionalizing any real
-   names/events. If the queue is empty, the run exits cleanly and **posts
-   nothing that day**.
-2. `tts.ts` — narrates it with OpenAI TTS, then re-transcribes the audio with
-   Whisper to get word-level timestamps for caption sync.
-3. `pickBroll.ts` — searches Pexels for portrait stock video matching the
-   story's mood/keywords.
-4. `assemble.ts` — ffmpeg composites b-roll + narration + burned-in captions
-   into a 1080x1920 mp4.
+   classifying it into crime/love/fun, fictionalizing any real names/events,
+   and producing a consistent `visual_style` plus 5 `scene_prompts`. If the
+   queue is empty, the run exits cleanly and **posts nothing that day**.
+2. `tts.ts` — narrates it with ElevenLabs, which returns word-level timing
+   alignment directly (no separate transcription step needed).
+3. `generateImages.ts` — generates one AI image per scene (OpenAI
+   `gpt-image-1`) in the story's consistent visual style.
+4. `assemble.ts` — ffmpeg turns each scene image into a slow zoom/pan clip
+   (duration weighted by how many narration words it covers), concatenates
+   them, and burns in captions synced to the narration.
 5. `uploadYoutube.ts` / `uploadInstagram.ts` — publish the result.
 
 Run the pipeline with `npm run run:daily`, or let the included GitHub Actions
@@ -30,18 +33,39 @@ publish automatically when there's something in it.
 ## Prerequisites
 
 ```bash
-brew install ffmpeg node
+brew install ffmpeg-full node
 ```
 
-## Account setup (do this yourself — takes ~30-45 min once)
+**Use `ffmpeg-full`, not plain `ffmpeg`.** Homebrew's default `ffmpeg` formula
+ships without libass/freetype, so the caption-burning `subtitles` filter this
+pipeline relies on doesn't exist in it — you'll get `Unknown filter
+'subtitles'`. `ffmpeg-full` is keg-only (won't conflict with a regular ffmpeg
+install), so point the pipeline at it explicitly:
+
+```bash
+echo 'FFMPEG_BIN=/usr/local/opt/ffmpeg-full/bin/ffmpeg' >> .env
+```
+
+(Apple Silicon Macs: that path is under `/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg`
+instead — run `brew --prefix ffmpeg-full` to confirm.) On the GitHub Actions
+Ubuntu runner this isn't an issue — its apt `ffmpeg` package includes libass
+by default, and the workflow verifies that on every run before proceeding.
+
+## Account setup (do this yourself — takes ~45-60 min once)
 
 ### 1. OpenAI
 Create a key at https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
-Used for script writing, TTS, and Whisper timestamps. Costs a few cents per video.
+Used for script writing and scene image generation (`gpt-image-1`). Image
+generation is the bigger cost driver here — budget roughly $0.15-0.25/video
+depending on size/quality settings.
 
-### 2. Pexels (free)
-Sign up at https://www.pexels.com/api/ → `PEXELS_API_KEY`. Free tier is
-generous (200 req/hour) — plenty for 1 video/day.
+### 2. ElevenLabs
+Sign up at https://elevenlabs.io → Profile → API key → `ELEVENLABS_API_KEY`.
+Pick a voice from the Voice Library (or clone/design one) and copy its voice
+id → `ELEVENLABS_VOICE_ID`. This is the single biggest lever for how
+professional the narration sounds — worth spending a few minutes previewing
+voices before settling on one. Free tier is limited; the Starter plan
+(~$5/mo) covers daily shorts comfortably.
 
 ### 3. YouTube
 1. Create a project at https://console.cloud.google.com/
