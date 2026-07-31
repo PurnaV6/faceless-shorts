@@ -68,11 +68,14 @@ export async function generateScript(): Promise<StoryScript> {
           "Return JSON with keys: category (one of the category ids above), title (string, <=60 chars, punchy), " +
             "script (string, the full narration expanding the user's idea into a complete story with a hook and " +
             "an ending), hashtags (array of 6-10 strings without # symbol), visual_style (a short phrase " +
-            "describing ONE consistent art style for every scene image, e.g. 'moody cinematic digital painting, " +
-            "desaturated blue tones, dramatic lighting' — this phrase will be prefixed to every scene prompt so " +
-            "the video looks visually cohesive), scene_prompts (array of exactly 5 short vivid visual " +
-            "descriptions, in story order, each depicting one key moment/setting from the script — no text or " +
-            "lettering in the image, no real people's likenesses).",
+            "describing ONE consistent art style for every scene image, e.g. 'moody cinematic 3D animated film " +
+            "style, desaturated blue tones, dramatic rim lighting' — this phrase will be prefixed to every scene " +
+            "prompt so the video looks visually cohesive), character_description (a specific, detailed physical " +
+            "description of the ONE recurring main character who appears in every scene — hair, face shape, " +
+            "build, exact outfit/colors — detailed enough that the same character can be redrawn consistently " +
+            "across multiple separate images; invented, not a real/identifiable person), scene_prompts (array " +
+            "of exactly 5 short vivid visual descriptions, in story order, each depicting the main character in " +
+            "one key moment/setting from the script — no text or lettering in the image).",
         ].join("\n"),
       },
     ],
@@ -87,6 +90,7 @@ export async function generateScript(): Promise<StoryScript> {
     script: string;
     hashtags: string[];
     visual_style: string;
+    character_description: string;
     scene_prompts: string[];
   };
 
@@ -97,6 +101,7 @@ export async function generateScript(): Promise<StoryScript> {
     script: parsed.script,
     hashtags: parsed.hashtags,
     visualStyle: parsed.visual_style,
+    characterDescription: parsed.character_description,
     scenePrompts: parsed.scene_prompts,
     createdAt: new Date().toISOString(),
   };

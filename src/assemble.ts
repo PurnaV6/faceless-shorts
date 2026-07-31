@@ -21,7 +21,7 @@ function formatSrtTime(seconds: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(msRem).padStart(3, "0")}`;
 }
 
-function buildSrt(words: WordTimestamp[], groupSize = 4): string {
+function buildSrt(words: WordTimestamp[], groupSize = 2): string {
   const lines: string[] = [];
   let index = 1;
   for (let i = 0; i < words.length; i += groupSize) {

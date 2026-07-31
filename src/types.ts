@@ -7,6 +7,7 @@ export interface StoryScript {
   script: string;
   hashtags: string[];
   visualStyle: string;
+  characterDescription: string;
   scenePrompts: string[];
   createdAt: string;
 }

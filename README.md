@@ -2,10 +2,10 @@
 
 You submit a one-line storyline through a private web form. The pipeline
 expands it into a full narration script, voices it with ElevenLabs, generates
-a set of AI scene images in one consistent art style, animates them with
-Ken Burns pans/zooms, burns in captions, and publishes it to YouTube Shorts
-and Instagram Reels — once a day, only on days you've actually submitted a
-storyline.
+a recurring animated main character across a set of AI scene images in one
+consistent art style, animates them with Ken Burns pans/zooms, burns in
+tightly-paced captions, and publishes it to YouTube Shorts and Instagram
+Reels — once a day, only on days you've actually submitted a storyline.
 
 ## What it does
 
@@ -15,15 +15,19 @@ storyline.
 1. `generateScript.ts` — pulls the oldest pending storyline from the queue
    and asks OpenAI to expand it into a full ~45-60s fictional script,
    classifying it into crime/love/fun, fictionalizing any real names/events,
-   and producing a consistent `visual_style` plus 5 `scene_prompts`. If the
-   queue is empty, the run exits cleanly and **posts nothing that day**.
+   and producing a consistent `visual_style`, a detailed `character_description`
+   for the one recurring main character, and 5 `scene_prompts`. If the queue
+   is empty, the run exits cleanly and **posts nothing that day**.
 2. `tts.ts` — narrates it with ElevenLabs, which returns word-level timing
    alignment directly (no separate transcription step needed).
-3. `generateImages.ts` — generates one AI image per scene (OpenAI
-   `gpt-image-1`) in the story's consistent visual style.
+3. `generateImages.ts` — generates the first scene with OpenAI `gpt-image-1`,
+   then generates every later scene with `images.edit`, feeding that first
+   image back in each time as the character reference so the same character
+   recurs across all 5 scenes instead of looking like a different person
+   each cut.
 4. `assemble.ts` — ffmpeg turns each scene image into a slow zoom/pan clip
    (duration weighted by how many narration words it covers), concatenates
-   them, and burns in captions synced to the narration.
+   them, and burns in 2-word caption bursts synced to the narration.
 5. `uploadYoutube.ts` / `uploadInstagram.ts` — publish the result.
 
 Run the pipeline with `npm run run:daily`, or let the included GitHub Actions
@@ -55,8 +59,9 @@ by default, and the workflow verifies that on every run before proceeding.
 
 ### 1. OpenAI
 Create a key at https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
-Used for script writing and scene image generation (`gpt-image-1`). Image
-generation is the bigger cost driver here — budget roughly $0.15-0.25/video
+Used for script writing and scene image generation (`gpt-image-1`: 1 initial
+generate call + 4 character-consistent edit calls per video). Image
+generation is the bigger cost driver here — budget roughly $0.25-0.40/video
 depending on size/quality settings.
 
 ### 2. ElevenLabs

@@ -31,7 +31,12 @@ async function main() {
   console.log(`Narration duration: ${narration.durationSeconds.toFixed(1)}s`);
 
   console.log(`Generating ${story.scenePrompts.length} scene images...`);
-  const imagePaths = await generateSceneImages(story.scenePrompts, story.visualStyle, outDir);
+  const imagePaths = await generateSceneImages(
+    story.scenePrompts,
+    story.visualStyle,
+    story.characterDescription,
+    outDir,
+  );
 
   console.log("Assembling video...");
   const videoPath = await assembleVideo({
