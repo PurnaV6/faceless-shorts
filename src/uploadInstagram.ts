@@ -1,14 +1,9 @@
-import path from "node:path";
-import { uploadPublicFile } from "./storage.js";
+import { uploadVideoToSupabase } from "./storage.js";
 
 const GRAPH_VERSION = "v19.0";
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function uploadToSupabase(videoPath: string): Promise<string> {
-  return uploadPublicFile(`${Date.now()}-${path.basename(videoPath)}`, videoPath, "video/mp4");
 }
 
 async function graphRequest(pathSegment: string, params: Record<string, string>) {
@@ -30,7 +25,8 @@ async function graphGet(pathSegment: string, params: Record<string, string>) {
 }
 
 export async function uploadToInstagram(params: {
-  videoPath: string;
+  videoPath?: string;
+  videoUrl?: string;
   caption: string;
 }): Promise<string> {
   const igUserId = process.env.IG_USER_ID;
@@ -39,7 +35,10 @@ export async function uploadToInstagram(params: {
     throw new Error("Missing IG_USER_ID / IG_ACCESS_TOKEN");
   }
 
-  const videoUrl = await uploadToSupabase(params.videoPath);
+  const videoUrl =
+    params.videoUrl ??
+    (params.videoPath ? await uploadVideoToSupabase(params.videoPath, "instagram") : null);
+  if (!videoUrl) throw new Error("Instagram upload requires videoPath or videoUrl");
 
   const creation = await graphRequest(`${igUserId}/media`, {
     media_type: "REELS",

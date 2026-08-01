@@ -4,8 +4,9 @@ You submit a one-line storyline through a private web form. The pipeline
 expands it into a full narration script, voices it with ElevenLabs, generates
 a recurring animated main character across a set of AI scene images in one
 consistent art style, animates them with Ken Burns pans/zooms, burns in
-tightly-paced captions, and publishes it to YouTube Shorts and Instagram
-Reels — once a day, only on days you've actually submitted a storyline.
+tightly-paced captions, and uploads a review preview. Nothing reaches
+YouTube Shorts or Instagram Reels until you watch that preview and mark the
+render approved in Supabase.
 
 ## What it does
 
@@ -15,24 +16,28 @@ Reels — once a day, only on days you've actually submitted a storyline.
 1. `generateScript.ts` — pulls the oldest pending storyline from the queue
    and asks OpenAI to expand it into a full ~45-60s fictional script,
    classifying it into crime/love/fun, fictionalizing any real names/events,
-   and producing a consistent `visual_style`, a detailed `character_description`
-   for the one recurring main character, and 5 `scene_prompts`. If the queue
+   and producing a consistent `visual_style`, locked character descriptions,
+   and ordered scene prompts. If the queue
    is empty, the run exits cleanly and **posts nothing that day**.
 2. `tts.ts` — narrates it with ElevenLabs, which returns word-level timing
    alignment directly (no separate transcription step needed).
-3. `generateImages.ts` — generates the first scene with OpenAI `gpt-image-1`,
-   then generates every later scene with `images.edit`, feeding that first
-   image back in each time as the character reference so the same character
-   recurs across all 5 scenes instead of looking like a different person
-   each cut.
+3. `generateImages.ts` — generates one medium-quality locked cast reference
+   with OpenAI `gpt-image-1`, then generates every story scene economically
+   with `gpt-image-1-mini` and `images.edit` from that same reference so
+   identities and outfits remain stable.
 4. `assemble.ts` — ffmpeg turns each scene image into a slow zoom/pan clip
    (duration weighted by how many narration words it covers), concatenates
-   them, and burns in 2-word caption bursts synced to the narration.
-5. `uploadYoutube.ts` / `uploadInstagram.ts` — publish the result.
+   them, normalizes the final runtime, and burns in stacked 2-3 word caption
+   bursts synced to the narration, plus a red subscribe button during the
+   final 3.5 seconds at no additional AI-generation cost.
+5. `run.ts` uploads the completed MP4 to Supabase and creates an
+   `awaiting_review` row in `video_renders`.
+6. `publishApproved.ts` publishes at most one render, and only when you have
+   manually changed that row to `approved`.
 
 Run the pipeline with `npm run run:daily`, or let the included GitHub Actions
-workflow (`.github/workflows/daily.yml`) check the queue once a day and
-publish automatically when there's something in it.
+workflow (`.github/workflows/daily.yml`) checks once a day. It publishes one
+previously approved render, if available, then creates the next review preview.
 
 ## Prerequisites
 
@@ -59,10 +64,27 @@ by default, and the workflow verifies that on every run before proceeding.
 
 ### 1. OpenAI
 Create a key at https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
-Used for script writing and scene image generation (`gpt-image-1`: 1 initial
-generate call + 4 character-consistent edit calls per video). Image
-generation is the bigger cost driver here — budget roughly $0.25-0.40/video
-depending on size/quality settings.
+Used for script writing and scene image generation. The budget defaults use
+`gpt-image-1` at medium quality once for the cast reference, then
+`gpt-image-1-mini` at medium quality for the eight scene edits per episode.
+At current output-token pricing, all 18 Priya episodes are roughly $2.22 for
+image outputs, plus input/reference-image tokens and any genuinely new
+retries. The pipeline caches its script, narration, reference, and completed
+frames under the queue id, so retrying a failed render does not rebuy them.
+Check current API pricing before queueing the full series.
+
+Override these defaults in `.env`, or with same-named GitHub Actions variables:
+
+```bash
+OPENAI_REFERENCE_MODEL=gpt-image-1
+OPENAI_REFERENCE_QUALITY=medium
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_QUALITY=medium
+```
+
+The final subscribe button is rendered locally by ffmpeg. Customize it with
+`SUBSCRIBE_CTA_TEXT`, `SUBSCRIBE_CTA_SECONDS`, or disable it with
+`SUBSCRIBE_CTA_ENABLED=false`.
 
 ### 2. ElevenLabs
 Sign up at https://elevenlabs.io → Profile → API key → `ELEVENLABS_API_KEY`.
@@ -92,14 +114,14 @@ tier is limited; the Starter plan (~$5/mo) covers daily shorts comfortably.
    you're confident in the pipeline — that removes the 7-day limit.
 
 ### 4. Supabase
-Used for three things: (a) temporary public hosting so Instagram's API can
+Used for four things: (a) temporary public hosting so Instagram's API can
 fetch the rendered video by URL, (b) the storyline queue the web form writes
-to, and (c) series continuity data (locked character/style/reference image,
-running plot summary).
+to, (c) series continuity data (locked cast/style/reference image/rules and
+running plot summary), and (d) the manual video-review queue.
 1. Create a project at https://supabase.com if you don't have one.
 2. Storage → create a public bucket, e.g. `faceless-shorts-renders`.
-3. SQL Editor → paste and run `supabase/queue.sql`, then `supabase/series.sql`,
-   to create the `storyline_queue` and `series` tables.
+3. SQL Editor → run `supabase/queue.sql`, `supabase/series.sql`, then
+   `supabase/video-renders.sql` in that order.
 4. Project Settings → API → copy the URL and the **service_role** key (not
    the anon key) → `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`.
 
@@ -139,19 +161,33 @@ npm run auth:youtube   # one-time
 Then submit a storyline through the deployed web form, and run:
 
 ```bash
-npm run run:daily   # picks up the queued storyline, renders, uploads
+npm run run:daily   # renders one queued storyline and creates a preview
 ```
 
-If nothing's in the queue, this exits with "No storyline queued today —
-skipping this run." and does nothing else — no render, no upload.
+If nothing is in the queue, this exits cleanly. When a preview is ready,
+`episode-summary.json` contains its watch URL and render id. After watching,
+approve it in the Supabase SQL editor:
+
+```sql
+update video_renders
+set status = 'approved', approved_at = now(), error_message = null
+where id = 'RENDER_UUID' and status in ('awaiting_review', 'failed');
+```
+
+Then publish the oldest approved render:
+
+```bash
+npm run publish:approved
+```
 
 ## Automating daily uploads
 
 Push this repo to GitHub, add every `.env` value as a repository secret
 (Settings → Secrets and variables → Actions), and the included workflow
-(`.github/workflows/daily.yml`) will check the queue once a day and publish
-automatically whenever you've submitted a storyline through the form. It also
-commits `state/used-stories.json` back as a record of what's been posted.
+(`.github/workflows/daily.yml`) will publish one render that you have already
+approved, then render the next queued storyline for review. A manual workflow
+run can do `publish-approved`, `render-preview`, or `both`. Merely adding
+platform credentials cannot bypass the approval state.
 
 ## Multi-episode series
 
@@ -164,17 +200,28 @@ npm run queue:series -- "<overall story premise>" 15
 
 This asks OpenAI to break the premise into 15 episode beats (rising tension,
 final episode resolves), creates a `series` row, and queues all 15 as
-`storyline_queue` rows tagged with `series_id` + `episode_number` — the
-daily cron then posts one per day, in order, automatically.
+`storyline_queue` rows tagged with `series_id` + `episode_number`. The daily
+cron renders them in order and holds each one for review.
+
+For the locked 18-part Priya series, do not ask the model to invent an
+outline. Queue the checked-in canon directly:
+
+```bash
+npm run queue:priya
+```
+
+`config/priya-case.json` fixes all 18 beats, the six-character roster,
+appearance rules, reveal limits, recurring evidence, a 45-second target, and
+eight frames per episode. The uploaded overview video remains labelled
+**Episode 0 — Series Trailer**; it is not placed in the numbered queue.
 
 How continuity works under the hood:
-- **Episode 1** invents the character, art style, and narrator voice fresh —
-  same as a standalone video — then locks all three into the `series` row,
-  along with the actual reference image (uploaded to Supabase storage) that
-  every later episode's scenes get generated against via `images.edit`.
-- **Episodes 2-15** don't re-invent anything — they reuse the locked
-  character/style/voice verbatim and continue the plot using a running
-  summary that gets appended to after every episode renders.
+- **Episode 1** uses the cast and style already locked on the series row. It
+  creates a cast reference image that every scene and later episode uses via
+  `images.edit`.
+- **Later episodes** reuse the locked cast/style/voice/canon and continue the
+  plot using a running summary. Reveal rules in the private series bible stop
+  the writer from borrowing a later twist.
 - If you submit a one-off storyline through the web form while a series is
   mid-run, it queues behind the remaining series episodes (FIFO by
   `created_at`) rather than interleaving with them.

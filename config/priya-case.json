@@ -1,0 +1,223 @@
+{
+  "seriesTitle": "8:17 — The Priya Case",
+  "totalEpisodes": 18,
+  "targetDurationSeconds": 45,
+  "sceneCount": 8,
+  "narratorGender": "male",
+  "visualStyle": "moody cinematic 3D animated crime-thriller, expressive realistic faces, tactile fabric and metal, cold blue investigation lighting, warm amber memory lighting, dramatic rim light, shallow depth of field, vertical 9:16, non-graphic",
+  "premise": "Junior accountant Priya Sharma disappears after discovering relief-fund fraud. Electronics repairman Neil Varma is framed for her murder, proves a key recording was manipulated, and gradually earns Inspector Maya Rao's trust. He then assists Maya as a civilian technical consultant to expose security chief Raghav Bedi and Aster Foundation founder Karan Sethi.",
+  "characters": [
+    {
+      "id": "priya",
+      "name": "Priya Sharma",
+      "role": "25-year-old junior accountant and whistle-blower",
+      "appearance": "Indian woman, oval face, expressive dark-brown eyes, long wavy black hair, mustard-yellow kurta, blue denim jacket, deep-red scarf, small silver pendant",
+      "continuityNotes": [
+        "Brave and careful, but frightened during her final hours.",
+        "After Episode 3 she appears only in evidence, memories, recordings, photographs, and brief flashbacks.",
+        "Never depict violence against her on screen."
+      ]
+    },
+    {
+      "id": "neil",
+      "name": "Neil Varma",
+      "role": "30-year-old electronics repair-shop owner and wrongly accused civilian",
+      "appearance": "Indian man, lean build, angular face, short slightly untidy black hair, light stubble, green checked shirt, charcoal jacket, brown messenger bag",
+      "continuityNotes": [
+        "Observant with damaged electronics, recordings, metadata, CCTV, and inconsistencies.",
+        "He assists Maya only as a civilian technical consultant and never has police authority.",
+        "Before Episode 6 he says he barely knew Priya, not that he had never seen her."
+      ]
+    },
+    {
+      "id": "maya",
+      "name": "Inspector Maya Rao",
+      "role": "38-year-old lead police investigator",
+      "appearance": "Indian woman, composed angular face, dark hair tied back, navy coat over practical dark clothes, small black notebook",
+      "continuityNotes": [
+        "Calm, evidence-driven, and initially cautious about Neil.",
+        "Her alliance with Neil develops gradually as the evidence changes."
+      ]
+    },
+    {
+      "id": "karan",
+      "name": "Karan Sethi",
+      "role": "46-year-old respected founder of the Aster Foundation",
+      "appearance": "Indian man, well-groomed salt-and-pepper hair, composed smile, cream or pale-grey tailored suit, distinctive silver wristwatch",
+      "continuityNotes": [
+        "Publicly charitable and trustworthy, privately controlling.",
+        "Do not present him as the confirmed mastermind before Episode 14."
+      ]
+    },
+    {
+      "id": "raghav",
+      "name": "Raghav Bedi",
+      "role": "41-year-old Aster Foundation security chief",
+      "appearance": "Indian man, broad build, close-cropped black hair, severe face, black security jacket, dark key card on a red lanyard",
+      "continuityNotes": [
+        "Physically threatening but not the mastermind.",
+        "Do not identify him as Priya's direct killer before Episode 13."
+      ]
+    },
+    {
+      "id": "meera",
+      "name": "Meera Joshi",
+      "role": "27-year-old accountant, Priya's colleague and closest friend",
+      "appearance": "Indian woman, round face, shoulder-length straight black hair, teal blouse, beige cardigan, small gold stud earrings",
+      "continuityNotes": [
+        "A frightened witness whose family was threatened, never a villain."
+      ]
+    }
+  ],
+  "truth": [
+    "Priya discovered disaster-relief money diverted from the Aster Foundation through Orion Logistics.",
+    "Karan secretly owns Orion Logistics and ordered Priya's murder and Neil's framing.",
+    "Raghav abducted Priya from Aster's basement, killed her off-screen, moved her to the abandoned railway depot, manipulated bridge CCTV, cloned Neil's plate, and planted evidence in Neil's van.",
+    "Priya had taken a damaged voice recorder to Neil's shop and hidden evidence inside it; Neil knew her only as that customer.",
+    "Priya disappeared at 8:17 PM. Neil's 8:12 card payment and 8:24 wired-phone call prove his alibi."
+  ],
+  "revealRules": [
+    "Do not identify Priya as murdered before Episode 3.",
+    "Do not prove the CCTV is fake before Episode 5.",
+    "Do not reveal LIGHTHOUSE before Episode 7.",
+    "Do not confirm Blackwood Bridge was staged before Episode 9.",
+    "Do not reveal Raghav as the direct killer before Episode 13.",
+    "Do not confirm Karan ordered the murder before Episode 14.",
+    "Do not play Karan's recorded order before Episode 16.",
+    "Do not formally clear Neil before Episode 18."
+  ],
+  "languageRules": [
+    "Call the bridge Blackwood Bridge, the charity Aster Foundation, and the shell company Orion Logistics every time.",
+    "Until Episode 13 say the killer or the person who framed Neil without naming Raghav.",
+    "Until Episode 14 never call Karan the mastermind in public-facing narration.",
+    "Neil assists Maya as a civilian technical consultant; never say he joined the police."
+  ],
+  "recurringMarkers": [
+    "digital clock reading 8:17",
+    "repair ticket 317",
+    "Priya's deep-red scarf",
+    "Priya's silver pendant",
+    "Karan's silver watch",
+    "Raghav's red security lanyard"
+  ],
+  "episodes": [
+    {
+      "number": 1,
+      "title": "The Last Call",
+      "beat": "Priya vanishes at exactly 8:17 PM. Her room is untouched, her bag remains home, and her phone is dead. Maya learns Priya's final call went to Neil, who remembers her saying, 'If anyone asks, you never saw me.' Priya's red scarf is found on Blackwood Bridge.",
+      "visualSequence": [
+        "Individual character introduction: Priya Sharma in her locked outfit, anxious beside a digital clock showing 8:17.",
+        "Individual character introduction: Neil Varma in his locked outfit inside his electronics repair shop.",
+        "Individual character introduction: Inspector Maya Rao in her locked outfit opening her black notebook.",
+        "Priya leaving the Aster Foundation office into a tense evening street.",
+        "Priya's untouched room with her travel bag still at home and her phone shown dead.",
+        "Maya studying Priya's final-call record under cold investigation light.",
+        "Neil recalling Priya's frightened final sentence inside the repair shop.",
+        "Priya's deep-red scarf moving in the rain on Blackwood Bridge."
+      ],
+      "endQuestion": "Why did Priya call Neil?"
+    },
+    {
+      "number": 2,
+      "title": "The Van at the Bridge",
+      "beat": "Police find Priya's broken phone and a small blood trace beside the scarf. Rainy traffic footage shows a grey van with Neil's number plate stopping for forty-seven seconds at 8:17. Neil says his van never left his shop. Maya notices an anonymous tip arrived before the footage was publicly known.",
+      "endQuestion": "Who knew what the camera would show?"
+    },
+    {
+      "number": 3,
+      "title": "Missing Becomes Murder",
+      "beat": "The next morning police find Priya at an abandoned railway depot and the missing case becomes murder. Tyre marks match Neil's van model. An anonymous message directs Maya to search beneath Neil's passenger seat, where Priya's pendant is wrapped around one of Neil's tools.",
+      "endQuestion": "Who put the evidence inside Neil's van?"
+    },
+    {
+      "number": 4,
+      "title": "The Perfect Suspect",
+      "beat": "Police find Priya's blood trace, pendant, and Neil's tool arranged beneath one seat and arrest Neil before sunrise. There is no broken lock or missing key. Maya wonders why a panicked killer left an entire ready-made case. Neil tells her, 'Inspector, evidence can be repaired too.'",
+      "endQuestion": "Was the case against Neil too perfect?"
+    },
+    {
+      "number": 5,
+      "title": "The Impossible Timeline",
+      "beat": "Neil's shop records a card payment at 8:12 PM and a wired-telephone call at 8:24, while Blackwood Bridge is eighteen minutes away in clear weather. Studying the original footage frame by frame, Neil spots an identical streetlight flicker and proves eleven seconds were duplicated.",
+      "endQuestion": "Who edited the CCTV footage?"
+    },
+    {
+      "number": 6,
+      "title": "The Cloned Plate",
+      "beat": "Neil shows that the number plate stays unnaturally sharp while the van and rain blur, proving a clean number was digitally overlaid. Maya stops treating him as the killer but cannot clear him. Neil remembers Priya as the customer who left a damaged voice recorder under repair ticket 317.",
+      "endQuestion": "What did Priya leave at Neil's shop?"
+    },
+    {
+      "number": 7,
+      "title": "Ticket 317",
+      "beat": "Neil finds repair box 317, Priya's recorder, and her note: 'If I do not return, the truth is inside the silence.' Four seconds of static hide a faint three-note chime. Beneath the battery lining he discovers a microSD card containing one encrypted folder named LIGHTHOUSE.",
+      "endQuestion": "What was Project LIGHTHOUSE?"
+    },
+    {
+      "number": 8,
+      "title": "Priya's Hidden Ledger",
+      "beat": "LIGHTHOUSE contains Aster Foundation accounts showing millions in relief money paid to staffless Orion Logistics and approved with the initials K.S. A photo shows Priya confronting someone wearing a silver watch, but not the face. An unknown caller warns Neil to stop investigating.",
+      "endQuestion": "Who was watching Neil?"
+    },
+    {
+      "number": 9,
+      "title": "The Sound Under the Static",
+      "beat": "Neil isolates a freight-elevator announcement, 'Basement level two,' and a three-note Aster Foundation chime under the static. Priya's recording was made at Aster, not Blackwood Bridge. Basement footage is missing from 8:03 to 8:29, and only Karan or Raghav could erase it.",
+      "endQuestion": "What happened in Aster's basement?"
+    },
+    {
+      "number": 10,
+      "title": "The Friend Who Lied",
+      "beat": "Meera admits she saw Priya confront Karan at 8:06 while Raghav blocked the exit, but lied after her family was threatened. From a stairwell window she also saw a second grey van with a damaged rear light. The same van appears in an Orion Logistics insurance file.",
+      "endQuestion": "Why did Orion Logistics have the second van?"
+    },
+    {
+      "number": 11,
+      "title": "The Respected Man",
+      "beat": "Maya questions Karan, who blames Raghav and produces records claiming Raghav acted alone. Neil discovers the records were created after Priya died. Before police can detain him, Raghav disappears and Karan's calm public image begins to crack.",
+      "endQuestion": "Was Karan protecting the truth or controlling it?"
+    },
+    {
+      "number": 12,
+      "title": "Warehouse Six",
+      "beat": "Police raid Orion Logistics Warehouse Six and find cloned plates, Priya's missing bag, and the controller used to alter the bridge camera. The controller's final remote connection traces to Karan's private office. Karan runs while Raghav remains hidden.",
+      "endQuestion": "Could Neil bring Raghav out of hiding?"
+    },
+    {
+      "number": 13,
+      "title": "Neil Sets a Trap",
+      "beat": "Neil sends a false message claiming he recovered Priya's original recording and waits in his repair shop while Maya's team watches nearby. Raghav breaks in to destroy it and is arrested carrying the original Blackwood Bridge memory card, exposing him as Priya's direct killer and Neil's framer.",
+      "endQuestion": "Who gave Raghav the order?"
+    },
+    {
+      "number": 14,
+      "title": "The Order",
+      "beat": "Raghav confesses that Karan ordered Priya's murder, the staged bridge footage, and Neil's framing. Karan promised money and protection. A scheduled email from Priya arrives with a locked audio attachment, but Maya still needs proof independent of Raghav's confession.",
+      "endQuestion": "What was locked inside Priya's last message?"
+    },
+    {
+      "number": 15,
+      "title": "The Locked Message",
+      "beat": "Priya's audio attachment is encrypted. Neil connects the recurring time 8:17 with repair ticket 317 and tries the combined key 817317. The file opens, revealing Priya's final recording, but Karan has already arranged a private flight.",
+      "endQuestion": "Would Priya's recording expose Karan in time?"
+    },
+    {
+      "number": 16,
+      "title": "Priya's Final Recording",
+      "beat": "Priya's recording captures Karan ordering Raghav to silence her, stage Blackwood Bridge, and blame the repairman. Her final words identify the relief-fund ledger. Maya now has independent proof, but Karan is travelling toward a private airfield.",
+      "endQuestion": "Could Maya stop Karan before takeoff?"
+    },
+    {
+      "number": 17,
+      "title": "The Man Behind 8:17",
+      "beat": "Maya intercepts Karan at a private airfield and plays Priya's recording as he insists Raghav acted alone. The order in Karan's own voice and the Orion records destroy his defence. Maya arrests him, but Neil's public exoneration is not yet complete.",
+      "endQuestion": "Would Neil finally get his name back?"
+    },
+    {
+      "number": 18,
+      "title": "Priya's Truth",
+      "beat": "Neil is formally cleared and Maya publicly explains how he was framed. The stolen relief funds are recovered, Meera testifies safely, and Priya's evidence becomes her legacy. Neil restores recorder 317 and places it beside Priya's photograph as the clock reaches 8:17.",
+      "endQuestion": "How many other truths are still waiting to be heard?"
+    }
+  ]
+}

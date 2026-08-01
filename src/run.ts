@@ -1,14 +1,16 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import "dotenv/config";
-import { generateScript, NoStorylineQueuedError } from "./generateScript.js";
+import { generateScript } from "./generateScript.js";
 import { synthesizeNarration } from "./tts.js";
 import { generateSceneImages } from "./generateImages.js";
 import { assembleVideo } from "./assemble.js";
-import { uploadToYoutube } from "./uploadYoutube.js";
-import { uploadToInstagram } from "./uploadInstagram.js";
 import { fetchSeries, lockReferenceImage, uploadReferenceImage, appendToRunningSummary } from "./series.js";
-import { uploadPublicFile, uploadPublicJson } from "./storage.js";
+import { uploadVideoToSupabase } from "./storage.js";
+import { createReviewRender } from "./reviewQueue.js";
+import { recordRenderedStory } from "./state.js";
+import { fetchNextQueuedStoryline } from "./queue.js";
+import type { StoryScript } from "./types.js";
 
 const SUMMARY_PATH = path.resolve(import.meta.dirname, "..", "episode-summary.json");
 
@@ -19,32 +21,49 @@ interface EpisodeSummaryOutput {
   episodeNumber?: number;
   totalEpisodes?: number;
   recap?: string;
-  youtubeUrl?: string;
-  instagramPosted?: boolean;
+  status?: "awaiting_review";
   previewUrl?: string;
-  publishCommand?: string;
+  renderId?: string;
 }
 
 async function writeSummary(summary: EpisodeSummaryOutput): Promise<void> {
   await writeFile(SUMMARY_PATH, JSON.stringify(summary, null, 2));
 }
 
-async function main() {
-  const runId = new Date().toISOString().replace(/[:.]/g, "-");
-  const outDir = path.resolve(import.meta.dirname, "..", "render", runId);
-
-  console.log("Checking for a queued storyline...");
-  let story;
+async function loadCachedStory(cachePath: string, queueEntryId: string): Promise<StoryScript | null> {
   try {
-    await mkdir(outDir, { recursive: true });
-    story = await generateScript();
-  } catch (err) {
-    if (err instanceof NoStorylineQueuedError) {
-      console.log("No storyline queued today — skipping this run.");
-      await writeSummary({ skipped: true });
-      return;
+    const story = JSON.parse(await readFile(cachePath, "utf8")) as StoryScript;
+    if (story.queueEntryId !== queueEntryId) {
+      throw new Error(`Cached script belongs to queue item ${story.queueEntryId}, not ${queueEntryId}`);
     }
+    return story;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw err;
+  }
+}
+
+async function main() {
+  console.log("Checking for a queued storyline...");
+  const queued = await fetchNextQueuedStoryline();
+  if (!queued) {
+    console.log("No storyline queued today — skipping this run.");
+    await writeSummary({ skipped: true });
+    return;
+  }
+
+  // A stable folder makes the expensive parts resumable. If a run fails
+  // after producing some assets, the retry uses the same script, voice and
+  // completed frames instead of purchasing them a second time.
+  const outDir = path.resolve(import.meta.dirname, "..", "render", queued.id);
+  await mkdir(outDir, { recursive: true });
+  const storyCachePath = path.join(outDir, "story.json");
+  let story = await loadCachedStory(storyCachePath, queued.id);
+  if (story) {
+    console.log("Reusing cached story script");
+  } else {
+    story = await generateScript(queued);
+    await writeFile(storyCachePath, JSON.stringify(story, null, 2));
   }
 
   const episodeTag = story.series
@@ -92,9 +111,10 @@ async function main() {
     audioPath: narration.audioPath,
     words: narration.words,
     durationSeconds: narration.durationSeconds,
+    targetDurationSeconds: story.targetDurationSeconds,
     outDir,
   });
-  console.log(`Rendered: ${videoPath}`);
+  console.log(`Rendered ${story.targetDurationSeconds.toFixed(1)}s preview: ${videoPath}`);
 
   if (story.series && story.series.episodeNumber === 1) {
     console.log("Locking series reference image for future episodes...");
@@ -112,7 +132,30 @@ async function main() {
   const displayTitle = story.series
     ? `${story.title} — Part ${story.series.episodeNumber}/${story.series.totalEpisodes}`
     : story.title;
-  const description = `${displayTitle}\n\n${story.hashtags.map((h) => `#${h}`).join(" ")}`;
+  const description = [
+    displayTitle,
+    story.episodeSummary ?? "",
+    story.series ? "8:17 — The Priya Case is an original fictional animated crime story." : "",
+    story.hashtags.map((h) => `#${h}`).join(" "),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  console.log("Uploading review preview to Supabase...");
+  const previewUrl = await uploadVideoToSupabase(videoPath, "previews");
+  const renderId = await createReviewRender({
+    queueId: story.queueEntryId,
+    seriesId: story.series?.seriesId ?? null,
+    episodeNumber: story.series?.episodeNumber ?? null,
+    title: story.title,
+    displayTitle,
+    description,
+    tags: story.hashtags,
+    script: story.script,
+    recap: story.episodeSummary,
+    videoUrl: previewUrl,
+  });
+  await recordRenderedStory(story);
 
   // Written alongside the video so `npm run publish -- <videoPath>` can
   // upload it later without needing to re-run generation.
@@ -128,43 +171,15 @@ async function main() {
     episodeNumber: story.series?.episodeNumber,
     totalEpisodes: story.series?.totalEpisodes,
     recap: story.episodeSummary ?? story.script.slice(0, 280),
+    status: "awaiting_review",
+    previewUrl,
+    renderId,
   };
 
-  if (process.env.SKIP_UPLOAD === "true") {
-    console.log("Render-only mode (SKIP_UPLOAD=true) — uploading a preview copy for review, not publishing...");
-    const reviewKey = `pending-review/${runId}`;
-    const previewUrl = await uploadPublicFile(`${reviewKey}.mp4`, videoPath, "video/mp4");
-    await uploadPublicJson(`${reviewKey}.json`, { title: displayTitle, description, hashtags: story.hashtags });
-    console.log(`Preview: ${previewUrl}`);
-    summary.previewUrl = previewUrl;
-    summary.publishCommand = `npm run publish -- "${previewUrl}"`;
-  } else {
-    if (process.env.YOUTUBE_REFRESH_TOKEN) {
-      console.log("Uploading to YouTube...");
-      const videoId = await uploadToYoutube({
-        videoPath,
-        title: displayTitle,
-        description,
-        tags: story.hashtags,
-      });
-      console.log(`YouTube: https://youtube.com/shorts/${videoId}`);
-      summary.youtubeUrl = `https://youtube.com/shorts/${videoId}`;
-    } else {
-      console.log("Skipping YouTube upload (no YOUTUBE_REFRESH_TOKEN set).");
-    }
-
-    if (process.env.IG_ACCESS_TOKEN) {
-      console.log("Uploading to Instagram...");
-      const igId = await uploadToInstagram({ videoPath, caption: description });
-      console.log(`Instagram media id: ${igId}`);
-      summary.instagramPosted = true;
-    } else {
-      console.log("Skipping Instagram upload (no IG_ACCESS_TOKEN set).");
-    }
-  }
-
   await writeSummary(summary);
-  console.log("Done.");
+  console.log(`Preview: ${previewUrl}`);
+  console.log(`Review id: ${renderId}`);
+  console.log("No platform upload was attempted. Approve this render before publish:approved can use it.");
 }
 
 main().catch((err) => {

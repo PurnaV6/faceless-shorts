@@ -2,12 +2,22 @@ name: Daily short
 
 on:
   schedule:
-    # 14:00 UTC daily — adjust to your target audience's peak time
+    # Publishes one previously approved preview, then renders the next one.
     - cron: "0 14 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What should this manual run do?
+        required: true
+        default: publish-approved
+        type: choice
+        options:
+          - publish-approved
+          - render-preview
+          - both
 
 jobs:
-  publish:
+  daily:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,8 +32,6 @@ jobs:
       - name: Install ffmpeg
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          # Ubuntu's ffmpeg package ships with libass, but fail fast and
-          # clearly here instead of deep inside a filter_complex error.
           ffmpeg -filters 2>/dev/null | grep -q subtitles || {
             echo "::error::ffmpeg is missing the subtitles filter (libass)"; exit 1;
           }
@@ -31,27 +39,42 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily pipeline
+      - name: Publish one manually approved render
+        if: github.event_name == 'schedule' || inputs.action == 'publish-approved' || inputs.action == 'both'
         env:
-          # Every episode is rendered and uploaded to a private preview URL,
-          # never auto-published — see the GitHub issue this step creates
-          # for the review link and the exact command to publish it.
-          SKIP_UPLOAD: "true"
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
-          ELEVENLABS_VOICE_ID_FEMALE: ${{ secrets.ELEVENLABS_VOICE_ID_FEMALE }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_PRIVACY_STATUS: ${{ vars.YOUTUBE_PRIVACY_STATUS || 'public' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: npm run publish:approved
+
+      - name: Render next review preview
+        id: render
+        if: github.event_name == 'schedule' || inputs.action == 'render-preview' || inputs.action == 'both'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_REFERENCE_MODEL: ${{ vars.OPENAI_REFERENCE_MODEL || 'gpt-image-1' }}
+          OPENAI_REFERENCE_QUALITY: ${{ vars.OPENAI_REFERENCE_QUALITY || 'medium' }}
+          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini' }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'medium' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          ELEVENLABS_VOICE_ID_FEMALE: ${{ secrets.ELEVENLABS_VOICE_ID_FEMALE }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          SUBSCRIBE_CTA_ENABLED: ${{ vars.SUBSCRIBE_CTA_ENABLED || 'true' }}
+          SUBSCRIBE_CTA_TEXT: ${{ vars.SUBSCRIBE_CTA_TEXT || 'SUBSCRIBE' }}
+          SUBSCRIBE_CTA_SECONDS: ${{ vars.SUBSCRIBE_CTA_SECONDS || '3.5' }}
         run: npm run run:daily
 
-      - name: Post episode summary as a GitHub issue
+      - name: Post review preview as a GitHub issue
+        if: steps.render.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -70,34 +93,41 @@ jobs:
           d = json.load(open('episode-summary.json'))
           ep, total = d.get('episodeNumber'), d.get('totalEpisodes')
           tag = f' — Part {ep}/{total}' if ep else ''
-          print(f\"{d['title']}{tag}\")
+          print(f\"Review: {d['title']}{tag}\")
           ")
 
           BODY=$(python3 -c "
           import json
           d = json.load(open('episode-summary.json'))
+          render_id = d.get('renderId')
           lines = [f\"**Category:** {d.get('category')}\"]
           if d.get('episodeNumber'):
               lines.append(f\"**Episode:** {d['episodeNumber']} of {d['totalEpisodes']}\")
-          lines += ['', d.get('recap', ''), '']
-          if d.get('previewUrl'):
-              lines.append(f\"**Preview (not published):** {d['previewUrl']}\")
-              lines.append('')
-              lines.append('Nothing has been posted anywhere yet. To publish this exact episode, run:')
-              lines.append(f\"\`{d.get('publishCommand', '')}\`\")
-          if d.get('youtubeUrl'):
-              lines.append(f\"YouTube: {d['youtubeUrl']}\")
-          if d.get('instagramPosted'):
-              lines.append('Also posted to Instagram.')
+          lines += [
+              '', d.get('recap', ''), '',
+              f\"**Status:** {d.get('status', 'awaiting_review')}\",
+              f\"**Preview:** [Watch the 45-second video]({d.get('previewUrl')})\",
+              f\"**Render ID:** {render_id}\",
+              '',
+              '**Nothing has been published.** After watching, approve it in the Supabase SQL editor:',
+              '',
+              'Approval SQL:',
+              '    update video_renders',
+              \"    set status = 'approved', approved_at = now(), error_message = null\",
+              f\"    where id = '{render_id}' and status in ('awaiting_review', 'failed');\",
+              '',
+              'The next scheduled run, or a manual publish-approved run, will publish one approved render.'
+          ]
           print(chr(10).join(lines))
           ")
 
           gh issue create --title "$TITLE" --body "$BODY"
 
-      - name: Commit updated dedupe state
+      - name: Commit updated render state
+        if: steps.render.outcome == 'success'
         run: |
           git config user.name "faceless-shorts-bot"
           git config user.email "actions@users.noreply.github.com"
           git add state/used-stories.json
-          git diff --cached --quiet || git commit -m "chore: record today's published story"
+          git diff --cached --quiet || git commit -m "chore: record today's rendered story"
           git push

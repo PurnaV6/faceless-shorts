@@ -39,11 +39,32 @@ export async function fetchNextQueuedStoryline(): Promise<QueuedStoryline | null
   };
 }
 
-export async function markQueuedStorylineUsed(id: string): Promise<void> {
+async function updateQueuedStorylineStatus(
+  id: string,
+  status: "awaiting_review" | "published" | "failed",
+): Promise<void> {
   const supabase = getClient();
+  const timestamps =
+    status === "awaiting_review"
+      ? { rendered_at: new Date().toISOString() }
+      : status === "published"
+        ? { used_at: new Date().toISOString() }
+        : {};
   const { error } = await supabase
     .from("storyline_queue")
-    .update({ status: "used", used_at: new Date().toISOString() })
+    .update({ status, ...timestamps })
     .eq("id", id);
   if (error) throw error;
+}
+
+export async function markQueuedStorylineAwaitingReview(id: string): Promise<void> {
+  await updateQueuedStorylineStatus(id, "awaiting_review");
+}
+
+export async function markQueuedStorylinePublished(id: string): Promise<void> {
+  await updateQueuedStorylineStatus(id, "published");
+}
+
+export async function markQueuedStorylineFailed(id: string): Promise<void> {
+  await updateQueuedStorylineStatus(id, "failed");
 }

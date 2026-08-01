@@ -22,6 +22,10 @@ export async function uploadToYoutube(params: {
   oauth2Client.setCredentials({ refresh_token: refreshToken });
 
   const youtube = google.youtube({ version: "v3", auth: oauth2Client });
+  const requestedPrivacy = process.env.YOUTUBE_PRIVACY_STATUS ?? "public";
+  if (!["private", "unlisted", "public"].includes(requestedPrivacy)) {
+    throw new Error("YOUTUBE_PRIVACY_STATUS must be private, unlisted, or public");
+  }
 
   const res = await youtube.videos.insert({
     part: ["snippet", "status"],
@@ -33,7 +37,7 @@ export async function uploadToYoutube(params: {
         categoryId: "24", // Entertainment
       },
       status: {
-        privacyStatus: "public",
+        privacyStatus: requestedPrivacy,
         selfDeclaredMadeForKids: false,
       },
     },

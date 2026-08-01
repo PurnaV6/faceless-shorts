@@ -1,4 +1,5 @@
-import { writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { WordTimestamp } from "./types.js";
 
@@ -23,6 +24,31 @@ interface TimedChar {
   ch: string;
   start: number;
   end: number;
+}
+
+interface NarrationCache {
+  cacheKey: string;
+  words: WordTimestamp[];
+  durationSeconds: number;
+}
+
+async function isNonEmptyFile(filePath: string): Promise<boolean> {
+  try {
+    return (await stat(filePath)).size > 0;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw err;
+  }
+}
+
+function voiceSetting(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a number between 0 and 1`);
+  }
+  return value;
 }
 
 // Splits on whitespace, and ALSO on internal em/en dashes even with no
@@ -80,6 +106,33 @@ export async function synthesizeNarration(
     throw new Error("Missing ELEVENLABS_API_KEY");
   }
 
+  const modelId = process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2";
+  const voiceSettings = {
+    stability: voiceSetting("ELEVENLABS_STABILITY", 0.32),
+    similarity_boost: voiceSetting("ELEVENLABS_SIMILARITY", 0.82),
+    style: voiceSetting("ELEVENLABS_STYLE", 0.5),
+    use_speaker_boost: true,
+  };
+  const cacheKey = createHash("sha256")
+    .update(JSON.stringify({ script, voiceId, modelId, voiceSettings }))
+    .digest("hex");
+  const audioPath = path.join(outDir, "narration.mp3");
+  const cachePath = path.join(outDir, "narration.json");
+
+  try {
+    const cached = JSON.parse(await readFile(cachePath, "utf8")) as NarrationCache;
+    if (cached.cacheKey === cacheKey && (await isNonEmptyFile(audioPath))) {
+      console.log("Reusing cached ElevenLabs narration");
+      return {
+        audioPath,
+        words: cached.words,
+        durationSeconds: cached.durationSeconds,
+      };
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
     {
@@ -94,14 +147,11 @@ export async function synthesizeNarration(
         // multilingual_v2 reads dramatic narration with noticeably more
         // natural prosody. Latency doesn't matter here (this isn't a live
         // conversation), so there's no reason to trade quality for speed.
-        model_id: "eleven_multilingual_v2",
+        model_id: modelId,
         voice_settings: {
           // Lower stability = more vocal variation/emotion (default 0.5
           // reads flat for storytelling); style adds expressive emphasis.
-          stability: 0.4,
-          similarity_boost: 0.8,
-          style: 0.35,
-          use_speaker_boost: true,
+          ...voiceSettings,
         },
       }),
     },
@@ -113,11 +163,14 @@ export async function synthesizeNarration(
 
   const data = (await res.json()) as ElevenLabsResponse;
 
-  const audioPath = path.join(outDir, "narration.mp3");
   await writeFile(audioPath, Buffer.from(data.audio_base64, "base64"));
 
   const words = alignmentToWords(data.alignment);
   const durationSeconds = words.length ? words[words.length - 1].end : 0;
+  await writeFile(
+    cachePath,
+    JSON.stringify({ cacheKey, words, durationSeconds } satisfies NarrationCache),
+  );
 
   return { audioPath, words, durationSeconds };
 }
