@@ -21,6 +21,50 @@ function formatSrtTime(seconds: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(msRem).padStart(3, "0")}`;
 }
 
+function formatAssTime(seconds: number): string {
+  const centiseconds = Math.round(seconds * 100);
+  const h = Math.floor(centiseconds / 360_000);
+  const m = Math.floor((centiseconds % 360_000) / 6_000);
+  const s = Math.floor((centiseconds % 6_000) / 100);
+  const cs = centiseconds % 100;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+}
+
+export function buildSubscribeAss(
+  targetDurationSeconds: number,
+  text = "SUBSCRIBE",
+  visibleSeconds = 3.5,
+): string {
+  if (!Number.isFinite(targetDurationSeconds) || targetDurationSeconds <= 0) {
+    throw new Error("Subscribe CTA target duration must be greater than zero");
+  }
+  if (!Number.isFinite(visibleSeconds) || visibleSeconds <= 0) {
+    throw new Error("SUBSCRIBE_CTA_SECONDS must be greater than zero");
+  }
+
+  const start = Math.max(0, targetDurationSeconds - visibleSeconds);
+  const safeText = text.replace(/[{}\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+  const label = safeText || "SUBSCRIBE";
+
+  return [
+    "[Script Info]",
+    "ScriptType: v4.00+",
+    "PlayResX: 1080",
+    "PlayResY: 1920",
+    "WrapStyle: 2",
+    "ScaledBorderAndShadow: yes",
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    "Style: Subscribe,DejaVu Sans,58,&H00FFFFFF,&H00FFFFFF,&H001515E6,&H001515E6,-1,0,0,0,100,100,1,0,3,18,0,2,80,80,190,1",
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    `Dialogue: 0,${formatAssTime(start)},${formatAssTime(targetDurationSeconds)},Subscribe,,0,0,0,,{\\fad(180,250)}▶  ${label}`,
+    "",
+  ].join("\n");
+}
+
 // Groups words into caption cues up to maxGroupSize, but breaks early at
 // sentence/clause punctuation so a cue never straddles a sentence boundary
 // (e.g. "gone. Panic") or sits on screen too long because it happened to
@@ -206,6 +250,23 @@ export async function assembleVideo(params: {
   // with this scaled margin lands the stacked phrase around mid-frame across
   // both the macOS ffmpeg-full and Ubuntu builds used by this project.
   const subtitlesArg = `subtitles=${escapeForFfmpegFilter(srtPath)}:force_style='FontName=Arial Black,FontSize=16,Bold=-1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=8,MarginV=80'`;
+  const ctaEnabled = !["false", "0", "no"].includes(
+    (process.env.SUBSCRIBE_CTA_ENABLED || "true").trim().toLowerCase(),
+  );
+  const videoFilters = [subtitlesArg];
+  if (ctaEnabled) {
+    const visibleSeconds = Number(process.env.SUBSCRIBE_CTA_SECONDS || "3.5");
+    const subscribePath = path.join(outDir, "subscribe.ass");
+    await writeFile(
+      subscribePath,
+      buildSubscribeAss(
+        targetDurationSeconds,
+        process.env.SUBSCRIBE_CTA_TEXT || "SUBSCRIBE",
+        visibleSeconds,
+      ),
+    );
+    videoFilters.push(`subtitles=${escapeForFfmpegFilter(subscribePath)}`);
+  }
   const audioFilters = `${buildAtempoChain(playbackRate)},apad`;
 
   await run(FFMPEG_BIN, [
@@ -215,7 +276,7 @@ export async function assembleVideo(params: {
     "-i",
     audioPath,
     "-filter_complex",
-    `[0:v]${subtitlesArg}[v];[1:a]${audioFilters}[a]`,
+    `[0:v]${videoFilters.join(",")}[v];[1:a]${audioFilters}[a]`,
     "-map",
     "[v]",
     "-map",

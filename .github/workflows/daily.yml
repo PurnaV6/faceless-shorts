@@ -58,12 +58,19 @@ jobs:
         if: github.event_name == 'schedule' || inputs.action == 'render-preview' || inputs.action == 'both'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_REFERENCE_MODEL: ${{ vars.OPENAI_REFERENCE_MODEL || 'gpt-image-1' }}
+          OPENAI_REFERENCE_QUALITY: ${{ vars.OPENAI_REFERENCE_QUALITY || 'medium' }}
+          OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini' }}
+          OPENAI_IMAGE_QUALITY: ${{ vars.OPENAI_IMAGE_QUALITY || 'medium' }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           ELEVENLABS_VOICE_ID_FEMALE: ${{ secrets.ELEVENLABS_VOICE_ID_FEMALE }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          SUBSCRIBE_CTA_ENABLED: ${{ vars.SUBSCRIBE_CTA_ENABLED || 'true' }}
+          SUBSCRIBE_CTA_TEXT: ${{ vars.SUBSCRIBE_CTA_TEXT || 'SUBSCRIBE' }}
+          SUBSCRIBE_CTA_SECONDS: ${{ vars.SUBSCRIBE_CTA_SECONDS || '3.5' }}
         run: npm run run:daily
 
       - name: Post review preview as a GitHub issue

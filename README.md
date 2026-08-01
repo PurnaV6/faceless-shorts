@@ -21,13 +21,15 @@ render approved in Supabase.
    is empty, the run exits cleanly and **posts nothing that day**.
 2. `tts.ts` — narrates it with ElevenLabs, which returns word-level timing
    alignment directly (no separate transcription step needed).
-3. `generateImages.ts` — generates a locked cast reference with OpenAI
-   `gpt-image-1`, then generates every story scene with `images.edit` from
-   that same reference so identities and outfits remain stable.
+3. `generateImages.ts` — generates one medium-quality locked cast reference
+   with OpenAI `gpt-image-1`, then generates every story scene economically
+   with `gpt-image-1-mini` and `images.edit` from that same reference so
+   identities and outfits remain stable.
 4. `assemble.ts` — ffmpeg turns each scene image into a slow zoom/pan clip
    (duration weighted by how many narration words it covers), concatenates
    them, normalizes the final runtime, and burns in stacked 2-3 word caption
-   bursts synced to the narration.
+   bursts synced to the narration, plus a red subscribe button during the
+   final 3.5 seconds at no additional AI-generation cost.
 5. `run.ts` uploads the completed MP4 to Supabase and creates an
    `awaiting_review` row in `video_renders`.
 6. `publishApproved.ts` publishes at most one render, and only when you have
@@ -62,10 +64,27 @@ by default, and the workflow verifies that on every run before proceeding.
 
 ### 1. OpenAI
 Create a key at https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
-Used for script writing and scene image generation. The Priya preset uses one
-cast-reference generation plus eight character-consistent scene edits per
-episode, so image generation is the main cost driver. Check current API
-pricing before queueing the full series.
+Used for script writing and scene image generation. The budget defaults use
+`gpt-image-1` at medium quality once for the cast reference, then
+`gpt-image-1-mini` at medium quality for the eight scene edits per episode.
+At current output-token pricing, all 18 Priya episodes are roughly $2.22 for
+image outputs, plus input/reference-image tokens and any genuinely new
+retries. The pipeline caches its script, narration, reference, and completed
+frames under the queue id, so retrying a failed render does not rebuy them.
+Check current API pricing before queueing the full series.
+
+Override these defaults in `.env`, or with same-named GitHub Actions variables:
+
+```bash
+OPENAI_REFERENCE_MODEL=gpt-image-1
+OPENAI_REFERENCE_QUALITY=medium
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_QUALITY=medium
+```
+
+The final subscribe button is rendered locally by ffmpeg. Customize it with
+`SUBSCRIBE_CTA_TEXT`, `SUBSCRIBE_CTA_SECONDS`, or disable it with
+`SUBSCRIBE_CTA_ENABLED=false`.
 
 ### 2. ElevenLabs
 Sign up at https://elevenlabs.io → Profile → API key → `ELEVENLABS_API_KEY`.

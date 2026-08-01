@@ -9,7 +9,7 @@ import type {
   NarratorGender,
   StoryScript,
 } from "./types.js";
-import { fetchNextQueuedStoryline } from "./queue.js";
+import { fetchNextQueuedStoryline, type QueuedStoryline } from "./queue.js";
 import { fetchSeries } from "./series.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -220,8 +220,8 @@ async function generateContinuation(
   return JSON.parse(content) as ContinuationScriptFields;
 }
 
-export async function generateScript(): Promise<StoryScript> {
-  const queued = await fetchNextQueuedStoryline();
+export async function generateScript(queuedStoryline?: QueuedStoryline): Promise<StoryScript> {
+  const queued = queuedStoryline ?? (await fetchNextQueuedStoryline());
   if (!queued) throw new NoStorylineQueuedError();
 
   const topics: TopicsConfig = JSON.parse(await readFile(TOPICS_PATH, "utf-8"));

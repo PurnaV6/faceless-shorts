@@ -1,7 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import "dotenv/config";
-import { generateScript, NoStorylineQueuedError } from "./generateScript.js";
+import { generateScript } from "./generateScript.js";
 import { synthesizeNarration } from "./tts.js";
 import { generateSceneImages } from "./generateImages.js";
 import { assembleVideo } from "./assemble.js";
@@ -9,6 +9,8 @@ import { fetchSeries, lockReferenceImage, uploadReferenceImage, appendToRunningS
 import { uploadVideoToSupabase } from "./storage.js";
 import { createReviewRender } from "./reviewQueue.js";
 import { recordRenderedStory } from "./state.js";
+import { fetchNextQueuedStoryline } from "./queue.js";
+import type { StoryScript } from "./types.js";
 
 const SUMMARY_PATH = path.resolve(import.meta.dirname, "..", "episode-summary.json");
 
@@ -28,22 +30,40 @@ async function writeSummary(summary: EpisodeSummaryOutput): Promise<void> {
   await writeFile(SUMMARY_PATH, JSON.stringify(summary, null, 2));
 }
 
-async function main() {
-  const runId = new Date().toISOString().replace(/[:.]/g, "-");
-  const outDir = path.resolve(import.meta.dirname, "..", "render", runId);
-
-  console.log("Checking for a queued storyline...");
-  let story;
+async function loadCachedStory(cachePath: string, queueEntryId: string): Promise<StoryScript | null> {
   try {
-    await mkdir(outDir, { recursive: true });
-    story = await generateScript();
-  } catch (err) {
-    if (err instanceof NoStorylineQueuedError) {
-      console.log("No storyline queued today — skipping this run.");
-      await writeSummary({ skipped: true });
-      return;
+    const story = JSON.parse(await readFile(cachePath, "utf8")) as StoryScript;
+    if (story.queueEntryId !== queueEntryId) {
+      throw new Error(`Cached script belongs to queue item ${story.queueEntryId}, not ${queueEntryId}`);
     }
+    return story;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw err;
+  }
+}
+
+async function main() {
+  console.log("Checking for a queued storyline...");
+  const queued = await fetchNextQueuedStoryline();
+  if (!queued) {
+    console.log("No storyline queued today — skipping this run.");
+    await writeSummary({ skipped: true });
+    return;
+  }
+
+  // A stable folder makes the expensive parts resumable. If a run fails
+  // after producing some assets, the retry uses the same script, voice and
+  // completed frames instead of purchasing them a second time.
+  const outDir = path.resolve(import.meta.dirname, "..", "render", queued.id);
+  await mkdir(outDir, { recursive: true });
+  const storyCachePath = path.join(outDir, "story.json");
+  let story = await loadCachedStory(storyCachePath, queued.id);
+  if (story) {
+    console.log("Reusing cached story script");
+  } else {
+    story = await generateScript(queued);
+    await writeFile(storyCachePath, JSON.stringify(story, null, 2));
   }
 
   const episodeTag = story.series

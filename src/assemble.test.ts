@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAtempoChain, buildSrt, computeSceneDurations } from "./assemble.js";
+import {
+  buildAtempoChain,
+  buildSrt,
+  buildSubscribeAss,
+  computeSceneDurations,
+} from "./assemble.js";
 
 test("buildAtempoChain normalizes a 40-second narration to 45 seconds", () => {
   assert.equal(buildAtempoChain(40 / 45), "atempo=0.888889");
@@ -33,4 +38,17 @@ test("scene durations cover the target timeline", () => {
   const durations = computeSceneDurations(words, 8, 40);
   assert.equal(durations.length, 8);
   assert.equal(durations.reduce((sum, duration) => sum + duration, 0), 40);
+});
+
+test("subscribe CTA occupies the last 3.5 seconds of a 45-second video", () => {
+  const ass = buildSubscribeAss(45, "SUBSCRIBE", 3.5);
+  assert.match(ass, /Dialogue: 0,0:00:41\.50,0:00:45\.00/);
+  assert.match(ass, /▶  SUBSCRIBE/);
+  assert.match(ass, /BorderStyle/);
+});
+
+test("subscribe CTA sanitizes ASS control characters", () => {
+  const ass = buildSubscribeAss(45, "JOIN {now}\nplease", 3.5);
+  assert.match(ass, /JOIN now please/);
+  assert.doesNotMatch(ass, /JOIN \{/);
 });
