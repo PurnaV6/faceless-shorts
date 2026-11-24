@@ -1,0 +1,229 @@
+{
+  "seriesTitle": "Stack Trace Stickmen",
+  "totalEpisodes": 10,
+  "targetDurationSeconds": 36,
+  "sceneCount": 6,
+  "narratorGender": "male",
+  "episodic": true,
+  "renderMode": "higgsfield_motion",
+  "visualStyle": "clean 2D stickman cartoon, bold black ink stick figures with large round white heads and simple expressive faces (dot eyes, curved line mouth, tiny eyebrows), thick uniform line weight, each character identified by one bright signature colour accessory, flat pastel backgrounds of a cosy small software studio, soft drop shadows, crisp vector look, playful comedic poses, vertical 9:16, monitors and laptops show only abstract coloured code lines with no readable text, no logos, no brand names",
+  "premise": "A tiny software studio of stick figures ships code, breaks code and fixes code. Junior developer Kit keeps colliding with Glitch, a small mischievous bug who lives in the codebase, while senior engineer Mira, product manager Dana and Quack the rubber duck help, hinder or silently judge. Every episode is a self-contained joke about a real programming experience.",
+  "characters": [
+    {
+      "id": "kit",
+      "name": "Kit",
+      "role": "junior developer and the main character of every episode",
+      "appearance": "black stick figure with a large round white head, bright orange hoodie drawn as a simple orange torso shape with a hood, oversized orange over-ear headphones, carries a grey laptop covered in plain coloured circle stickers",
+      "continuityNotes": [
+        "Enthusiastic, overconfident, learns something every episode.",
+        "Appears in every episode.",
+        "Always wears the orange hoodie and orange headphones."
+      ]
+    },
+    {
+      "id": "mira",
+      "name": "Mira",
+      "role": "calm senior engineer who has seen everything",
+      "appearance": "black stick figure with a large round white head, teal knitted beanie, round black glasses, holds a huge teal coffee mug with steam",
+      "continuityNotes": [
+        "Unflappable, dry humour, helps Kit by asking one good question.",
+        "Her mug is always nearby; when things go very wrong the coffee ripples."
+      ]
+    },
+    {
+      "id": "glitch",
+      "name": "Glitch",
+      "role": "small mischievous bug who lives inside the codebase",
+      "appearance": "small bright red stick figure half the height of Kit, round red head with two curly antennae, tiny red beetle-shell shape on its back, wide toothy grin, can phase in and out of screens with a pixel-flicker",
+      "continuityNotes": [
+        "Never speaks; communicates with grins, waves and tiny thumbs-ups.",
+        "Hides in the code, then pops out of monitors and cables.",
+        "Mischievous but never cruel; it is the running joke, not a villain."
+      ]
+    },
+    {
+      "id": "dana",
+      "name": "Dana",
+      "role": "product manager who always needs it by Friday",
+      "appearance": "black stick figure with a large round white head, purple blazer drawn as a simple purple triangle torso, purple clipboard, a small stack of yellow sticky notes",
+      "continuityNotes": [
+        "Friendly but relentlessly optimistic about deadlines.",
+        "Asks for estimates and new features at the worst moments."
+      ]
+    },
+    {
+      "id": "quack",
+      "name": "Quack",
+      "role": "Kit's yellow rubber duck and silent debugging partner",
+      "appearance": "small classic bright yellow rubber duck with an orange beak and dot eyes, sits on Kit's desk",
+      "continuityNotes": [
+        "Never moves except to blink or slowly turn its head.",
+        "Often seems to know the answer before Kit does."
+      ]
+    }
+  ],
+  "truth": [
+    "Every bug in the studio is, somehow, Glitch.",
+    "Kit gets a little better every episode, but Glitch always finds a new hiding spot.",
+    "The programming situations are real and accurately described; only the characters are fictional."
+  ],
+  "revealRules": [
+    "Each episode resolves its own problem by the final line.",
+    "Glitch is finally caught by a unit test only in Episode 10."
+  ],
+  "languageRules": [
+    "Use plain, accurate programming terms that a beginner can follow, such as deploy, merge conflict, infinite loop, code review, semicolon, production.",
+    "Never name real companies, products, cloud providers, programming tools or famous programmers.",
+    "Keep jokes kind; laugh at the situation, never at a person.",
+    "Narrate in third person with quick comedic timing and short sentences."
+  ],
+  "recurringMarkers": [
+    "Kit's orange headphones",
+    "Mira's steaming teal coffee mug",
+    "Glitch's red antennae peeking out of a monitor",
+    "Quack the yellow rubber duck on Kit's desk",
+    "Dana's yellow sticky notes"
+  ],
+  "episodes": [
+    {
+      "number": 1,
+      "title": "It Works On My Machine",
+      "beat": "Kit proudly demos a new login button to Dana. It worked perfectly on Kit's laptop all morning, but on the big demo screen it does nothing. Mira asks one question: what is different between the two machines? They find a single setting that only exists on Kit's laptop, and inside it Glitch is curled up asleep like a cat.",
+      "visualSequence": [
+        "Kit in the orange hoodie and orange headphones grinning beside a laptop, giving a double thumbs-up.",
+        "Dana with her purple clipboard watching a big demo monitor with Kit; the screen shows a single unclicked button shape.",
+        "Close-up of Kit frozen mid-click, sweat drop on the white round head, Quack blinking on the desk.",
+        "Mira in her teal beanie and round glasses sipping from her teal mug, one finger raised to ask a question.",
+        "Kit and Mira leaning into the laptop screen, abstract coloured code lines glowing on their faces.",
+        "Inside the laptop screen, tiny red Glitch asleep curled up on a line of code, antennae twitching."
+      ],
+      "finalLine": "It did work on Kit's machine. That's where Glitch lives."
+    },
+    {
+      "number": 2,
+      "title": "The Friday Deploy",
+      "beat": "At 4:59 PM on Friday, Kit decides to deploy one tiny change before the weekend. Mira's coffee starts rippling. The deploy bar fills, the office lights flicker, and every monitor turns red. Glitch rides the progress bar like a surfboard. Kit rolls back the change, and the studio learns why nobody deploys on Friday afternoon.",
+      "visualSequence": [
+        "A wall clock shape at 4:59 above Kit's desk, Kit hovering a finger over a big green deploy button.",
+        "Mira's teal coffee mug on her desk with the coffee rippling in rings, Mira slowly turning her head.",
+        "A huge progress bar across a monitor with tiny red Glitch surfing on it, arms wide.",
+        "The whole studio bathed in red monitor light, Dana dropping her yellow sticky notes in shock.",
+        "Kit urgently pressing a big undo arrow button shape while Quack watches.",
+        "Everyone slumped in relief as the monitors turn calm blue again, Glitch waving goodbye from a screen."
+      ],
+      "finalLine": "Kit learned the oldest rule in software. Never deploy on a Friday."
+    },
+    {
+      "number": 3,
+      "title": "One Missing Semicolon",
+      "beat": "Kit's program refuses to run. Kit scrolls through three thousand lines of code, rewrites two functions and considers a new career. Quack stares at one specific line the whole time. Kit finally sees it: a single missing semicolon, with Glitch sitting exactly where it should be, holding it like a trophy.",
+      "visualSequence": [
+        "Kit staring at an angry red error shape on the laptop, headphones askew.",
+        "A towering scroll of abstract code lines rushing past Kit like a waterfall.",
+        "Kit lying face down on the desk dramatically, Quack sitting perfectly still beside the keyboard.",
+        "Close-up of Quack slowly turning its head toward one glowing line on the screen.",
+        "Zoom into that line: tiny red Glitch hugging a giant semicolon shape like a trophy.",
+        "Kit snatching the semicolon back and the screen turning green, Kit cheering with both arms up."
+      ],
+      "finalLine": "Three hours, three thousand lines. One semicolon."
+    },
+    {
+      "number": 4,
+      "title": "Rubber Duck Debugging",
+      "beat": "Mira tells Kit to explain the bug out loud to Quack, one line at a time. Kit feels silly but starts talking. Halfway through the second sentence Kit stops, realises the loop starts counting at one instead of zero, and fixes it. Quack has not moved at all. Glitch, hiding behind the duck, sulks.",
+      "visualSequence": [
+        "Mira pointing from her teal mug to Quack on Kit's desk with a knowing look.",
+        "Kit sitting face to face with Quack, hands explaining in the air, looking embarrassed.",
+        "Kit mid-sentence with a big light-bulb shape appearing above the round white head.",
+        "Kit typing fast, abstract code lines rearranging on the laptop screen.",
+        "Quack sitting completely still, one slow blink, looking smug.",
+        "Tiny red Glitch peeking from behind Quack with folded arms and a pout."
+      ],
+      "finalLine": "Quack said nothing. Quack was right."
+    },
+    {
+      "number": 5,
+      "title": "Merge Conflict",
+      "beat": "Kit and Mira both edit the same line of the same file at the same time. When they try to combine their work, the code splits into two glowing versions. They play tug of war with a giant line of code while Glitch referees with a whistle. Mira finally suggests they just sit together and pick the best parts of both.",
+      "visualSequence": [
+        "Kit and Mira at separate desks typing at the same moment, a single glowing code line between their screens.",
+        "The code line splitting into two glowing halves, one orange and one teal, with warning shapes around it.",
+        "Kit and Mira pulling the giant code line in a tug of war across the studio.",
+        "Tiny red Glitch standing on a chair as a referee, blowing a whistle, antennae bouncing.",
+        "Kit and Mira sitting side by side at one screen, calmly pointing at the two halves.",
+        "The two halves snapping together into one bright line, Kit and Mira giving a high five."
+      ],
+      "finalLine": "The conflict was not in the code. It was two people typing alone."
+    },
+    {
+      "number": 6,
+      "title": "The Infinite Loop",
+      "beat": "Kit writes a loop to count to ten but forgets to change the counter. The laptop fan spins up like a jet engine. Inside the screen, Glitch runs laps around a circular track, faster and faster. Mira calmly reaches over and stops the program. Kit adds one line so the counter goes up, and Glitch collapses, exhausted.",
+      "visualSequence": [
+        "Kit confidently pressing run, a small circular arrow shape appearing on the screen.",
+        "Kit's laptop shaking with motion lines as its fan roars, papers blowing off the desk.",
+        "Inside the screen, tiny red Glitch sprinting laps around a glowing circular track.",
+        "Mira leaning over with her teal mug in one hand and pressing a big stop button shape with the other.",
+        "Kit typing one short glowing line into the code, looking sheepish.",
+        "Glitch flat on its back on the track, panting, antennae drooping."
+      ],
+      "finalLine": "The loop ended. Glitch's cardio session did not."
+    },
+    {
+      "number": 7,
+      "title": "Estimate: Two Hours",
+      "beat": "Dana asks how long a small feature will take. Kit says two hours. Day one, Kit discovers the feature needs a new database table. Day two, a library update breaks everything. Day three, Glitch hides in the date settings. On day five Kit finishes and Dana asks for one tiny change.",
+      "visualSequence": [
+        "Dana with her purple clipboard asking a question, Kit confidently holding up two fingers.",
+        "A calendar shape flipping to day one, Kit staring at a huge new box diagram on the screen.",
+        "Calendar on day two, Kit surrounded by toppling stacks of red error shapes.",
+        "Calendar on day three, tiny red Glitch hiding inside a clock icon on the monitor.",
+        "Calendar on day five, Kit exhausted but triumphant with a green check mark on screen.",
+        "Dana cheerfully sticking one yellow sticky note onto Kit's monitor as Kit's face falls."
+      ],
+      "finalLine": "Two hours, in developer time, is a unit of hope."
+    },
+    {
+      "number": 8,
+      "title": "Do Not Touch",
+      "beat": "Kit opens a fifteen-year-old file with a single comment at the top: do not touch. Mira warns that nobody knows what it does. Kit removes one line that looks useless, and every light, printer and monitor in the studio turns off at once. Kit puts the line back, and everything returns. Glitch has been guarding that file for years.",
+      "visualSequence": [
+        "Kit opening a dusty old file drawn like an ancient scroll on the laptop, cobwebs on the screen edges.",
+        "Mira in her teal beanie shaking her head slowly, mug held protectively.",
+        "Kit's finger pressing delete on one glowing line with a mischievous look.",
+        "The whole studio plunged into darkness, only the white round heads and eyes visible.",
+        "Kit hurriedly pressing undo, the lights snapping back on, Dana's sticky notes floating down.",
+        "Tiny red Glitch dressed as a guard standing proudly beside the old file, saluting."
+      ],
+      "finalLine": "Nobody knows why that line works. Nobody will ever touch it again."
+    },
+    {
+      "number": 9,
+      "title": "Production Is Down",
+      "beat": "At 3 AM Kit's phone buzzes: the live app is down. Kit panics in pyjamas and the orange headphones. Mira joins the video call, calm, with a fresh mug of coffee. They read the logs line by line and find one typo in a web address that Kit changed that afternoon. Kit fixes it, the app comes back, and Glitch yawns from inside the server.",
+      "visualSequence": [
+        "Kit asleep in bed, a phone on the nightstand buzzing with motion lines, a clock shape showing 3:00.",
+        "Kit at the laptop in pyjamas and orange headphones, eyes wide, hair-spikes standing up.",
+        "Mira on a video call window, perfectly calm, steaming teal mug in hand.",
+        "Scrolling log lines on the screen with one line glowing red, Kit pointing at it.",
+        "Kit typing the fix, a big green status light switching on.",
+        "Inside a server rack shape, tiny red Glitch yawning and pulling a blanket over itself."
+      ],
+      "finalLine": "The fix took one minute. Finding it took the whole night."
+    },
+    {
+      "number": 10,
+      "title": "The Code Review",
+      "beat": "Kit submits a big change for Mira to review and gets forty-seven comments back. Kit works through every one, and on the last comment Mira suggests writing a test. Kit writes the first unit test of the series, runs it, and a little cage drops over Glitch inside the code. Glitch is finally caught. Mira approves the change, and Quack blinks once in approval.",
+      "visualSequence": [
+        "Kit proudly hitting submit on a giant glowing block of code.",
+        "Mira's screen filling with a tall stack of comment bubble shapes, Kit's jaw dropping.",
+        "Kit working late, ticking off comment bubbles one by one, Quack keeping watch.",
+        "Kit typing a small new block of code shaped like a cage, determined face.",
+        "Inside the screen, a glowing cage dropping over tiny red Glitch, who looks surprised and then grins.",
+        "Mira giving a big green check mark, Kit celebrating, Dana clapping, Quack blinking, Glitch waving from the cage."
+      ],
+      "finalLine": "Forty-seven comments, one test, zero bugs. For now."
+    }
+  ]
+}

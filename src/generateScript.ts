@@ -190,22 +190,29 @@ async function generateContinuation(
           `Source material for episode ${episodeNumber} of ${totalEpisodes} — this is what THIS episode ` +
             `must dramatize. Preserve every specific detail in it (per the CRITICAL instruction above): ` +
             `"${storyline}"`,
-          isFinal
-            ? "This is the FINAL episode — resolve the story with a satisfying ending."
-            : "End this episode on a cliffhanger — do not resolve the overall story yet.",
+          canon?.episodic
+            ? "This is a self-contained comedic episode with its own setup, escalation and payoff. Do not " +
+              "end on a cliffhanger. Build to a punchline."
+            : isFinal
+              ? "This is the FINAL episode — resolve the story with a satisfying ending."
+              : "End this episode on a cliffhanger — do not resolve the overall story yet.",
           "Category options (pick the closest fit):",
           categorySummaries,
           `Length: ${minWords}-${maxWords} spoken words. Use short, urgent sentences and no slow introduction.`,
-          "Open with a hook that connects to the previous clue, include no more than one short recap sentence, " +
-            "then reveal the episode's one major clue. Finish the narration with the EXACT final cliffhanger " +
-            "question supplied in the locked episode source. If the source includes a LOCKED VISUAL ORDER, " +
-            "follow all of its numbered shots in that exact order.",
+          canon?.episodic
+            ? "Open with a relatable hook in the first sentence, no recap. Finish the narration with the EXACT " +
+              "final line supplied in the locked episode source. If the source includes a LOCKED VISUAL ORDER, " +
+              "follow all of its numbered shots in that exact order."
+            : "Open with a hook that connects to the previous clue, include no more than one short recap " +
+              "sentence, then reveal the episode's one major clue. Finish the narration with the EXACT final " +
+              "cliffhanger question supplied in the locked episode source. If the source includes a LOCKED " +
+              "VISUAL ORDER, follow all of its numbered shots in that exact order.",
           `Return JSON with keys: category (one of the category ids above), title (use the LOCKED TITLE from the ` +
             `episode source), script (the full narration), hashtags (array of 6-10 strings without # symbol), ` +
             `scene_prompts (array of exactly ${series.sceneCount} short vivid shots in chronological order). ` +
             "Each scene prompt must name every visible locked character, repeat their fixed clothing, specify a " +
             "distinct camera composition, and represent a different beat so the video changes visually every " +
-            "few seconds. Do not require Neil or any other character in a scene where they do not belong. " +
+            "few seconds. Do not put any character in a scene where they do not belong. " +
             "No text, subtitles, lettering, logos, graphic violence, or visible victim's body/corpse. Also return episode_summary " +
             "(1-2 sentences containing only facts revealed by the end of this episode).",
         ]
@@ -331,6 +338,7 @@ export async function generateScript(queuedStoryline?: QueuedStoryline): Promise
         isFinalEpisode: episodeNumber >= series.totalEpisodes,
       },
       episodeSummary: parsed.episode_summary,
+      renderMode: series.continuityBible?.renderMode,
     };
   }
 

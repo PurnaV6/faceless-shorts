@@ -15,6 +15,12 @@ export interface ContinuityBible {
   revealRules: string[];
   languageRules: string[];
   recurringMarkers: string[];
+  // Episodic series are self-contained episodes that end on a punchline,
+  // instead of serialized cliffhangers.
+  episodic?: boolean;
+  // How scenes are put in motion. Omitted means the RENDER_MODE env var
+  // decides (default ken_burns).
+  renderMode?: "ken_burns" | "higgsfield_motion";
 }
 
 export interface SeriesInfo {
@@ -42,6 +48,8 @@ export interface StoryScript {
   // Short internal recap appended to the series running summary after each
   // successful render so the next episode has continuity context.
   episodeSummary: string | null;
+  // Set from the series bible; undefined lets RENDER_MODE decide at render.
+  renderMode?: "ken_burns" | "higgsfield_motion";
 }
 
 export interface WordTimestamp {

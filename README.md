@@ -210,6 +210,9 @@ outline. Queue the checked-in canon directly:
 npm run queue:priya
 ```
 
+(`queue:priya` and `queue:stickman` both run `src/queueLockedSeries.ts` with
+their config file; any other locked config can be queued the same way.)
+
 `config/priya-case.json` fixes all 18 beats, the six-character roster,
 appearance rules, reveal limits, recurring evidence, a 45-second target, and
 eight frames per episode. The uploaded overview video remains labelled
@@ -225,6 +228,60 @@ How continuity works under the hood:
 - If you submit a one-off storyline through the web form while a series is
   mid-run, it queues behind the remaining series episodes (FIFO by
   `created_at`) rather than interleaving with them.
+
+## Stickman series with Higgsfield motion
+
+`config/code-crew-stickman.json` is a locked, episodic comedy series,
+**Stack Trace Stickmen**: ten self-contained 36-second episodes about real
+programming moments (Friday deploys, merge conflicts, infinite loops, code
+review). The recurring cast is drawn as clean 2D stick figures, each marked
+by one signature colour:
+
+| Character | Role | Signature |
+| --- | --- | --- |
+| Kit | junior developer, in every episode | orange hoodie and headphones |
+| Mira | calm senior engineer | teal beanie, round glasses, teal mug |
+| Glitch | the bug who lives in the code | small, red, curly antennae |
+| Dana | product manager | purple blazer, clipboard, sticky notes |
+| Quack | silent rubber duck | yellow duck on Kit's desk |
+
+Queue it with:
+
+```bash
+npm run queue:stickman
+```
+
+That series sets `"renderMode": "higgsfield_motion"`, so each episode renders
+like this:
+
+1. OpenAI writes the episode from the locked beat and ends it on the fixed
+   punchline (`finalLine`), not a cliffhanger.
+2. ElevenLabs narrates it, exactly as before.
+3. OpenAI draws one locked stickman cast sheet, then the six scene stills
+   from it, so the characters stay consistent.
+4. Each still is uploaded to your Supabase bucket and sent to Higgsfield
+   image-to-video, which returns a short animated clip. Clip length is the
+   shortest supported option that covers the scene (6s by default).
+5. ffmpeg trims or holds each clip to the narration timing, then burns in the
+   captions and subscribe button as usual. The render waits for review.
+
+Setup: create an API key at https://console.higgsfield.ai and set
+`HF_API_KEY_ID` and `HF_API_KEY_SECRET` in `.env` and as GitHub Actions
+secrets. The defaults use `minimax/hailuo-2.3/standard/image-to-video`;
+change `HIGGSFIELD_VIDEO_MODEL` (and `HIGGSFIELD_VIDEO_DURATIONS` to the lengths
+that model accepts) to try another Higgsfield model.
+
+Cost and retries: each episode makes six Higgsfield video requests, which
+cost credits on top of the OpenAI and ElevenLabs spend. Check the model's
+price in the Higgsfield console before queueing all ten. Every request id is
+saved as `render/<queue id>/scene-N.motion.json` with a stable idempotency
+key, so a crashed or timed-out run resumes the same jobs instead of paying
+again. If Higgsfield refuses a scene outright (`failed` or `nsfw`), that one
+scene falls back to a Ken Burns pan; set `HIGGSFIELD_FALLBACK_KEN_BURNS=false`
+to fail the run instead.
+
+To put any other story in motion too, set `RENDER_MODE=higgsfield_motion`.
+A series' own `renderMode` always takes precedence.
 
 ## Things worth knowing before you scale this up
 

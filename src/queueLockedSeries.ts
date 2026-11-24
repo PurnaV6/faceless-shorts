@@ -5,15 +5,22 @@ import { createClient } from "@supabase/supabase-js";
 import { createSeries } from "./series.js";
 import type { CharacterProfile, ContinuityBible, NarratorGender } from "./types.js";
 
-interface PriyaEpisode {
+// Queues a checked-in, fully locked series (cast, style, canon and every
+// episode beat) without asking a model to invent an outline.
+//   npm run queue:priya      -> config/priya-case.json
+//   npm run queue:stickman   -> config/code-crew-stickman.json
+
+interface LockedEpisode {
   number: number;
   title: string;
   beat: string;
-  endQuestion: string;
+  // Serialized series end on a question; episodic ones end on a fixed line.
+  endQuestion?: string;
+  finalLine?: string;
   visualSequence?: string[];
 }
 
-interface PriyaSeriesConfig extends ContinuityBible {
+interface LockedSeriesConfig extends ContinuityBible {
   seriesTitle: string;
   totalEpisodes: number;
   targetDurationSeconds: number;
@@ -21,36 +28,44 @@ interface PriyaSeriesConfig extends ContinuityBible {
   narratorGender: NarratorGender;
   visualStyle: string;
   characters: CharacterProfile[];
-  episodes: PriyaEpisode[];
+  episodes: LockedEpisode[];
 }
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const CONFIG_PATH = path.join(ROOT, "config", "priya-case.json");
+const CONFIG_PATH = path.resolve(ROOT, process.argv[2] ?? path.join("config", "priya-case.json"));
 
-function buildEpisodeSource(config: PriyaSeriesConfig, episode: PriyaEpisode): string {
+function buildEpisodeSource(config: LockedSeriesConfig, episode: LockedEpisode): string {
+  const ending = config.episodic
+    ? `EXACT FINAL LINE: ${episode.finalLine}`
+    : `EXACT FINAL CLIFFHANGER QUESTION: ${episode.endQuestion}`;
   return [
     `LOCKED TITLE: ${episode.title}`,
     `LOCKED EPISODE BEAT: ${episode.beat}`,
     episode.visualSequence?.length
       ? `LOCKED VISUAL ORDER:\n${episode.visualSequence.map((shot, index) => `${index + 1}. ${shot}`).join("\n")}`
       : "",
-    `EXACT FINAL CLIFFHANGER QUESTION: ${episode.endQuestion}`,
-    "This episode must reveal only the information in its locked beat. Do not borrow any later reveal.",
+    ending,
+    config.episodic
+      ? "This episode must stay within its locked beat."
+      : "This episode must reveal only the information in its locked beat. Do not borrow any later reveal.",
   ]
     .filter(Boolean)
     .join("\n");
 }
 
 async function main(): Promise<void> {
-  const config = JSON.parse(await readFile(CONFIG_PATH, "utf8")) as PriyaSeriesConfig;
+  const config = JSON.parse(await readFile(CONFIG_PATH, "utf8")) as LockedSeriesConfig;
   if (config.episodes.length !== config.totalEpisodes) {
     throw new Error(
-      `Priya config has ${config.episodes.length} episodes but totalEpisodes=${config.totalEpisodes}`,
+      `${path.basename(CONFIG_PATH)} has ${config.episodes.length} episodes but totalEpisodes=${config.totalEpisodes}`,
     );
   }
   config.episodes.forEach((episode, index) => {
     if (episode.number !== index + 1) {
       throw new Error(`Expected episode ${index + 1}, found episode ${episode.number}`);
+    }
+    if (!(config.episodic ? episode.finalLine : episode.endQuestion)) {
+      throw new Error(`Episode ${episode.number} needs ${config.episodic ? "finalLine" : "endQuestion"}`);
     }
   });
 
@@ -91,6 +106,8 @@ async function main(): Promise<void> {
       revealRules: config.revealRules,
       languageRules: config.languageRules,
       recurringMarkers: config.recurringMarkers,
+      ...(config.episodic ? { episodic: true } : {}),
+      ...(config.renderMode ? { renderMode: config.renderMode } : {}),
     },
     narratorGender: config.narratorGender,
     targetDurationSeconds: config.targetDurationSeconds,

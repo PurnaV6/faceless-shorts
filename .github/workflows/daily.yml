@@ -71,6 +71,15 @@ jobs:
           SUBSCRIBE_CTA_ENABLED: ${{ vars.SUBSCRIBE_CTA_ENABLED || 'true' }}
           SUBSCRIBE_CTA_TEXT: ${{ vars.SUBSCRIBE_CTA_TEXT || 'SUBSCRIBE' }}
           SUBSCRIBE_CTA_SECONDS: ${{ vars.SUBSCRIBE_CTA_SECONDS || '3.5' }}
+          # Higgsfield image-to-video, used by series with renderMode
+          # higgsfield_motion (e.g. the stickman series) or RENDER_MODE.
+          HF_API_KEY_ID: ${{ secrets.HF_API_KEY_ID }}
+          HF_API_KEY_SECRET: ${{ secrets.HF_API_KEY_SECRET }}
+          RENDER_MODE: ${{ vars.RENDER_MODE || 'ken_burns' }}
+          HIGGSFIELD_VIDEO_MODEL: ${{ vars.HIGGSFIELD_VIDEO_MODEL || 'minimax/hailuo-2.3/standard/image-to-video' }}
+          HIGGSFIELD_VIDEO_DURATIONS: ${{ vars.HIGGSFIELD_VIDEO_DURATIONS || '6,10' }}
+          HIGGSFIELD_VIDEO_EXTRA_INPUT: ${{ vars.HIGGSFIELD_VIDEO_EXTRA_INPUT }}
+          HIGGSFIELD_FALLBACK_KEN_BURNS: ${{ vars.HIGGSFIELD_FALLBACK_KEN_BURNS || 'true' }}
         run: npm run run:daily
 
       - name: Post review preview as a GitHub issue

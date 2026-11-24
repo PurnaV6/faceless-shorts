@@ -4,7 +4,8 @@ import "dotenv/config";
 import { generateScript } from "./generateScript.js";
 import { synthesizeNarration } from "./tts.js";
 import { generateSceneImages } from "./generateImages.js";
-import { assembleVideo } from "./assemble.js";
+import { assembleVideo, planSceneTimeline } from "./assemble.js";
+import { animateScenes, parseRenderMode } from "./animateScenes.js";
 import { fetchSeries, lockReferenceImage, uploadReferenceImage, appendToRunningSummary } from "./series.js";
 import { uploadVideoToSupabase } from "./storage.js";
 import { createReviewRender } from "./reviewQueue.js";
@@ -105,8 +106,29 @@ async function main() {
     existingReferenceImageUrl,
   );
 
-  console.log("Assembling video...");
+  const renderMode = parseRenderMode(story.renderMode ?? process.env.RENDER_MODE);
+  let motionClipPaths: (string | null)[] | undefined;
+  if (renderMode === "higgsfield_motion") {
+    const { sceneDurations } = planSceneTimeline(
+      narration.words,
+      narration.durationSeconds,
+      images.imagePaths.length,
+      story.targetDurationSeconds,
+    );
+    console.log(`Animating ${images.imagePaths.length} scenes with Higgsfield...`);
+    motionClipPaths = await animateScenes({
+      imagePaths: images.imagePaths,
+      scenePrompts: story.scenePrompts,
+      sceneDurations,
+      visualStyle: story.visualStyle,
+      outDir,
+      storageKeyPrefix: `motion-inputs/${queued.id}`,
+    });
+  }
+
+  console.log(`Assembling video (${renderMode})...`);
   const videoPath = await assembleVideo({
+    motionClipPaths,
     imagePaths: images.imagePaths,
     audioPath: narration.audioPath,
     words: narration.words,
@@ -135,7 +157,9 @@ async function main() {
   const description = [
     displayTitle,
     story.episodeSummary ?? "",
-    story.series ? "8:17 — The Priya Case is an original fictional animated crime story." : "",
+    story.series && story.category === "crime"
+      ? "8:17 — The Priya Case is an original fictional animated crime story."
+      : "",
     story.hashtags.map((h) => `#${h}`).join(" "),
   ]
     .filter(Boolean)

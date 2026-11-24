@@ -164,6 +164,38 @@ async function buildKenBurnsClip(
   ]);
 }
 
+// Normalizes a Higgsfield motion clip to the shared 1080x1920/30fps format
+// and exactly the scene's duration: longer clips are trimmed, and shorter ones
+// hold their last frame so the timeline never drifts from the narration.
+export function buildMotionClipArgs(
+  clipPath: string,
+  duration: number,
+  outPath: string,
+): string[] {
+  const vf = [
+    "scale=1080:1920:force_original_aspect_ratio=increase",
+    "crop=1080:1920",
+    `fps=${FPS}`,
+    `tpad=stop_mode=clone:stop_duration=${Math.ceil(duration) + 1}`,
+    "setsar=1",
+  ].join(",");
+  return [
+    "-y",
+    "-i",
+    clipPath,
+    "-vf",
+    vf,
+    "-t",
+    String(duration),
+    "-an",
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    outPath,
+  ];
+}
+
 export function buildAtempoChain(playbackRate: number): string {
   if (!Number.isFinite(playbackRate) || playbackRate <= 0) {
     throw new Error(`Invalid audio playback rate: ${playbackRate}`);
@@ -191,6 +223,34 @@ function scaleWordTimings(words: WordTimestamp[], scale: number): WordTimestamp[
   }));
 }
 
+export interface SceneTimeline {
+  playbackRate: number;
+  scaledWords: WordTimestamp[];
+  sceneDurations: number[];
+  targetDurationSeconds: number;
+}
+
+// The final runtime is normalized to the target length. atempo uses >1 to
+// speed audio up and <1 to slow it down, so word timings are scaled by the
+// inverse relationship to keep captions and scene cuts locked to the voice.
+export function planSceneTimeline(
+  words: WordTimestamp[],
+  durationSeconds: number,
+  sceneCount: number,
+  targetDurationSeconds = durationSeconds,
+): SceneTimeline {
+  if (durationSeconds <= 0 || targetDurationSeconds <= 0) {
+    throw new Error("Narration and target durations must both be greater than zero");
+  }
+  const scaledWords = scaleWordTimings(words, targetDurationSeconds / durationSeconds);
+  return {
+    playbackRate: durationSeconds / targetDurationSeconds,
+    scaledWords,
+    sceneDurations: computeSceneDurations(scaledWords, sceneCount, targetDurationSeconds),
+    targetDurationSeconds,
+  };
+}
+
 export async function assembleVideo(params: {
   imagePaths: string[];
   audioPath: string;
@@ -198,28 +258,27 @@ export async function assembleVideo(params: {
   durationSeconds: number;
   targetDurationSeconds?: number;
   outDir: string;
+  // Optional animated clip per scene (Higgsfield). A null or missing entry
+  // uses a Ken Burns pan of that scene's still instead.
+  motionClipPaths?: (string | null)[];
 }): Promise<string> {
   const { imagePaths, audioPath, words, durationSeconds, outDir } = params;
-  const targetDurationSeconds = params.targetDurationSeconds ?? durationSeconds;
-  if (durationSeconds <= 0 || targetDurationSeconds <= 0) {
-    throw new Error("Narration and target durations must both be greater than zero");
-  }
-
-  // atempo uses >1 to speed audio up and <1 to slow it down. Word timings
-  // must be scaled by the inverse relationship so captions stay locked.
-  const playbackRate = durationSeconds / targetDurationSeconds;
-  const timingScale = targetDurationSeconds / durationSeconds;
-  const scaledWords = scaleWordTimings(words, timingScale);
-  const durations = computeSceneDurations(
+  const {
+    playbackRate,
     scaledWords,
-    imagePaths.length,
+    sceneDurations: durations,
     targetDurationSeconds,
-  );
+  } = planSceneTimeline(words, durationSeconds, imagePaths.length, params.targetDurationSeconds);
 
   const clipPaths: string[] = [];
   for (let i = 0; i < imagePaths.length; i++) {
     const clipPath = path.join(outDir, `scene-${i}.mp4`);
-    await buildKenBurnsClip(imagePaths[i], durations[i], clipPath);
+    const motionClip = params.motionClipPaths?.[i];
+    if (motionClip) {
+      await run(FFMPEG_BIN, buildMotionClipArgs(motionClip, durations[i], clipPath));
+    } else {
+      await buildKenBurnsClip(imagePaths[i], durations[i], clipPath);
+    }
     clipPaths.push(clipPath);
   }
 
