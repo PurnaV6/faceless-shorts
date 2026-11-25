@@ -96,10 +96,21 @@ function alignmentToWords(alignment: ElevenLabsAlignment): WordTimestamp[] {
   return words;
 }
 
+export interface NarrationOptions {
+  stability?: number;
+  similarity?: number;
+  style?: number;
+  // Neighbouring narration, sent so ElevenLabs keeps prosody continuous
+  // when a long script is voiced one scene at a time.
+  previousText?: string;
+  nextText?: string;
+}
+
 export async function synthesizeNarration(
   script: string,
   voiceId: string,
   outDir: string,
+  options: NarrationOptions = {},
 ): Promise<NarrationResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
@@ -108,13 +119,23 @@ export async function synthesizeNarration(
 
   const modelId = process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2";
   const voiceSettings = {
-    stability: voiceSetting("ELEVENLABS_STABILITY", 0.32),
-    similarity_boost: voiceSetting("ELEVENLABS_SIMILARITY", 0.82),
-    style: voiceSetting("ELEVENLABS_STYLE", 0.5),
+    stability: options.stability ?? voiceSetting("ELEVENLABS_STABILITY", 0.32),
+    similarity_boost: options.similarity ?? voiceSetting("ELEVENLABS_SIMILARITY", 0.82),
+    style: options.style ?? voiceSetting("ELEVENLABS_STYLE", 0.5),
     use_speaker_boost: true,
   };
   const cacheKey = createHash("sha256")
-    .update(JSON.stringify({ script, voiceId, modelId, voiceSettings }))
+    .update(
+      JSON.stringify({
+        script,
+        voiceId,
+        modelId,
+        voiceSettings,
+        // Only present when used, so existing Shorts caches stay valid.
+        ...(options.previousText ? { previousText: options.previousText } : {}),
+        ...(options.nextText ? { nextText: options.nextText } : {}),
+      }),
+    )
     .digest("hex");
   const audioPath = path.join(outDir, "narration.mp3");
   const cachePath = path.join(outDir, "narration.json");
@@ -143,6 +164,8 @@ export async function synthesizeNarration(
       },
       body: JSON.stringify({
         text: script,
+        ...(options.previousText ? { previous_text: options.previousText } : {}),
+        ...(options.nextText ? { next_text: options.nextText } : {}),
         // eleven_turbo_v2_5 is tuned for low latency, not expressiveness —
         // multilingual_v2 reads dramatic narration with noticeably more
         // natural prosody. Latency doesn't matter here (this isn't a live
